@@ -65,7 +65,7 @@ public class Query implements QueryInterface {
 		this.deep = deep ? Deep.YES : Deep.NO;
 	}
 
-	public Query(Integer pid, Integer rid, Deep deep) {
+	public Query(int pid, int rid, Deep deep) {
 		this.objectIDM = null;
 		this.pid = pid;
 		this.rid = rid;
@@ -73,7 +73,7 @@ public class Query implements QueryInterface {
 		this.deep = deep;
 	}
 
-	public Query(Integer pid, Integer rid, ObjectIDM objectIDM, Deep deep) {
+	public Query(int pid, int rid, ObjectIDM objectIDM, Deep deep) {
 		this.pid = pid;
 		this.rid = rid;
 		this.stopRid = Integer.MIN_VALUE;
