@@ -64,6 +64,8 @@ public class BinaryGeometryServlet extends SubServlet {
 				int pid = revision.getProject().getId();
 				int rid = revision.getRid();
 				JsonArray typesJson = requestObject.get("types").getAsJsonArray();
+				int nrObjects = 0;
+				Bounds modelBounds = new Bounds();
 				for (int i = 0; i < typesJson.size(); i++) {
 					String type = typesJson.get(i).getAsString();
 					EClass eClass = databaseSession.getEClassForName(type);
@@ -75,8 +77,35 @@ public class BinaryGeometryServlet extends SubServlet {
 					if (true) {
 						eClasses.addAll(getBimServer().getDatabase().getMetaDataManager().getAllSubClasses(eClass));
 					}
-
 					IfcModelInterface model = databaseSession.getAllOfTypes(eClasses, new Query(pid, rid, null, Deep.NO));
+					for (IdEObject object : model.getAllWithSubTypes(eClass)) {
+						if (object instanceof IfcProduct) {
+							IfcProduct ifcProduct = (IfcProduct) object;
+							GeometryInfo geometryInfo = ifcProduct.getGeometry();
+							if (geometryInfo != null) {
+								Bounds objectBounds = new Bounds(new Float3(geometryInfo.getMinBounds().getX(), geometryInfo.getMinBounds().getY(), geometryInfo.getMinBounds().getZ()),
+										new Float3(geometryInfo.getMaxBounds().getX(), geometryInfo.getMaxBounds().getY(), geometryInfo.getMaxBounds().getZ()));
+								modelBounds.integrate(objectBounds);
+								nrObjects++;
+							}
+						}
+					}
+				}
+				modelBounds.writeTo(dataOutputStream);
+				dataOutputStream.writeInt(nrObjects);
+				for (int i = 0; i < typesJson.size(); i++) {
+					String type = typesJson.get(i).getAsString();
+					EClass eClass = databaseSession.getEClassForName(type);
+					if (eClass == null) {
+						System.out.println("Unknown type: " + type);
+					}
+					Set<EClass> eClasses = new LinkedHashSet<EClass>();
+					eClasses.add(eClass);
+					if (true) {
+						eClasses.addAll(getBimServer().getDatabase().getMetaDataManager().getAllSubClasses(eClass));
+					}
+					IfcModelInterface model = databaseSession.getAllOfTypes(eClasses, new Query(pid, rid, null, Deep.NO));
+
 					for (IdEObject object : model.getAllWithSubTypes(eClass)) {
 						if (object instanceof IfcProduct) {
 							IfcProduct ifcProduct = (IfcProduct) object;
@@ -88,12 +117,6 @@ public class BinaryGeometryServlet extends SubServlet {
 									dataOutputStream.writeUTF(ifcProduct.eClass().getName());
 								}
 								dataOutputStream.writeLong(ifcProduct.getOid());
-								dataOutputStream.writeFloat(geometryInfo.getMinBounds().getX());
-								dataOutputStream.writeFloat(geometryInfo.getMinBounds().getY());
-								dataOutputStream.writeFloat(geometryInfo.getMinBounds().getZ());
-								dataOutputStream.writeFloat(geometryInfo.getMaxBounds().getX());
-								dataOutputStream.writeFloat(geometryInfo.getMaxBounds().getY());
-								dataOutputStream.writeFloat(geometryInfo.getMaxBounds().getZ());
 								GeometryData geometryData = geometryInfo.getData();
 								byte[] vertices = geometryData.getVertices();
 								dataOutputStream.writeInt(vertices.length);
