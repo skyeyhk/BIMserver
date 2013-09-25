@@ -64,6 +64,7 @@ public class BinaryGeometryServlet extends SubServlet {
 				int pid = revision.getProject().getId();
 				int rid = revision.getRid();
 				JsonArray typesJson = requestObject.get("types").getAsJsonArray();
+				
 				int nrObjects = 0;
 				Bounds modelBounds = new Bounds();
 				for (int i = 0; i < typesJson.size(); i++) {
