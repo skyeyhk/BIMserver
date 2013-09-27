@@ -43,7 +43,6 @@ public class RootServlet extends HttpServlet {
 	private JsonApiServlet jsonApiServlet;
 	private UploadServlet uploadServlet;
 	private DownloadServlet downloadServlet;
-	private BinaryGeometryServlet binaryGeometryServlet;
 
 	private BimServer bimServer;
 
@@ -59,7 +58,6 @@ public class RootServlet extends HttpServlet {
 		soap11Servlet.init(getServletConfig());
 		soap12Servlet = new WebServiceServlet12(bimServer, getServletContext());
 		soap12Servlet.init(getServletConfig());
-		binaryGeometryServlet = new BinaryGeometryServlet(bimServer, getServletContext());
 	}
 
 	@Override
@@ -94,8 +92,6 @@ public class RootServlet extends HttpServlet {
 				syndicationServlet.service(request, response);
 			} else if (pathInfo.startsWith("/json/") || pathInfo.equals("/json")) {
 				jsonApiServlet.service(request, response);
-			} else if (pathInfo.startsWith("/bgs/") || pathInfo.equals("/bgs")) {
-				binaryGeometryServlet.service(request, response);
 			} else if (pathInfo.startsWith("/upload/") || pathInfo.equals("/upload")) {
 				uploadServlet.service(request, response);
 			} else if (pathInfo.startsWith("/download/") || pathInfo.equals("/download")) {
