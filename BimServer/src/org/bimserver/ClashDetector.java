@@ -52,7 +52,7 @@ public class ClashDetector {
 			RenderEngineInstanceVisualisationProperties visualisationProperties = renderEngineInstance.getVisualisationProperties();
 
 			double min[] = new double[]{Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE};
-			double max[] = new double[]{Double.MIN_VALUE, Double.MIN_VALUE, Double.MIN_VALUE};
+			double max[] = new double[]{-Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
 			
 			for (int i=visualisationProperties.getStartIndex(); i<visualisationProperties.getStartIndex() + visualisationProperties.getPrimitiveCount() * 3; i++) {
 				int index = geometry.getIndex(i);
