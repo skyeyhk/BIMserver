@@ -67,6 +67,10 @@ public class BinaryGeometrySerializer extends AbstractGeometrySerializer {
 				dataOutputStream.writeUTF(ifcProduct.eClass().getName());
 			}
 			dataOutputStream.writeLong(ifcProduct.getOid());
+			
+			Bounds objectBounds = new Bounds(geometryInfo.getMinBounds(), geometryInfo.getMaxBounds());
+			objectBounds.writeTo(dataOutputStream);
+			
 			GeometryData geometryData = geometryInfo.getData();
 			byte[] vertices = geometryData.getVertices();
 			dataOutputStream.writeInt(vertices.length);
