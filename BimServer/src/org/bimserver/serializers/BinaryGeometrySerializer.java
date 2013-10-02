@@ -11,6 +11,7 @@ import org.bimserver.models.ifc2x3tc1.GeometryInfo;
 import org.bimserver.models.ifc2x3tc1.IfcProduct;
 import org.bimserver.models.ifc2x3tc1.IfcSlab;
 import org.bimserver.models.ifc2x3tc1.IfcSlabTypeEnum;
+import org.bimserver.models.ifc2x3tc1.Vector3f;
 import org.bimserver.plugins.serializers.AbstractGeometrySerializer;
 import org.bimserver.plugins.serializers.SerializerException;
 import org.bimserver.servlets.Bounds;
@@ -51,8 +52,10 @@ public class BinaryGeometrySerializer extends AbstractGeometrySerializer {
 		for (IfcProduct ifcProduct : getModel().getAllWithSubTypes(IfcProduct.class)) {
 			GeometryInfo geometryInfo = ifcProduct.getGeometry();
 			if (geometryInfo != null) {
-				Bounds objectBounds = new Bounds(new Float3(geometryInfo.getMinBounds().getX(), geometryInfo.getMinBounds().getY(), geometryInfo.getMinBounds()
-						.getZ()), new Float3(geometryInfo.getMaxBounds().getX(), geometryInfo.getMaxBounds().getY(), geometryInfo.getMaxBounds().getZ()));
+				Vector3f minBounds = geometryInfo.getMinBounds();
+				Vector3f maxBounds = geometryInfo.getMaxBounds();
+				Bounds objectBounds = new Bounds(new Float3(minBounds.getX(), minBounds.getY(), minBounds
+						.getZ()), new Float3(maxBounds.getX(), maxBounds.getY(), maxBounds.getZ()));
 				modelBounds.integrate(objectBounds);
 				nrObjects++;
 			}
@@ -61,30 +64,32 @@ public class BinaryGeometrySerializer extends AbstractGeometrySerializer {
 		dataOutputStream.writeInt(nrObjects);
 		for (IfcProduct ifcProduct : getModel().getAllWithSubTypes(IfcProduct.class)) {
 			GeometryInfo geometryInfo = ifcProduct.getGeometry();
-			if (ifcProduct instanceof IfcSlab && ((IfcSlab) ifcProduct).getPredefinedType() == IfcSlabTypeEnum.ROOF) {
-				dataOutputStream.writeUTF("IfcRoof");
-			} else {
-				dataOutputStream.writeUTF(ifcProduct.eClass().getName());
+			if (geometryInfo != null) {
+				if (ifcProduct instanceof IfcSlab && ((IfcSlab) ifcProduct).getPredefinedType() == IfcSlabTypeEnum.ROOF) {
+					dataOutputStream.writeUTF("IfcRoof");
+				} else {
+					dataOutputStream.writeUTF(ifcProduct.eClass().getName());
+				}
+				dataOutputStream.writeLong(ifcProduct.getOid());
+				
+				Bounds objectBounds = new Bounds(geometryInfo.getMinBounds(), geometryInfo.getMaxBounds());
+				objectBounds.writeTo(dataOutputStream);
+				
+				GeometryData geometryData = geometryInfo.getData();
+				byte[] vertices = geometryData.getVertices();
+				dataOutputStream.writeInt(vertices.length);
+				
+				ByteBuffer buffer = ByteBuffer.wrap(vertices);
+				convertOrder(buffer);
+				dataOutputStream.write(buffer.array());
+				
+				byte[] normals = geometryData.getNormals();
+				dataOutputStream.writeInt(normals.length);
+				
+				buffer = ByteBuffer.wrap(normals);
+				convertOrder(buffer);
+				dataOutputStream.write(buffer.array());
 			}
-			dataOutputStream.writeLong(ifcProduct.getOid());
-			
-			Bounds objectBounds = new Bounds(geometryInfo.getMinBounds(), geometryInfo.getMaxBounds());
-			objectBounds.writeTo(dataOutputStream);
-			
-			GeometryData geometryData = geometryInfo.getData();
-			byte[] vertices = geometryData.getVertices();
-			dataOutputStream.writeInt(vertices.length);
-			
-			ByteBuffer buffer = ByteBuffer.wrap(vertices);
-			convertOrder(buffer);
-			dataOutputStream.write(buffer.array());
-			
-			byte[] normals = geometryData.getNormals();
-			dataOutputStream.writeInt(normals.length);
-			
-			buffer = ByteBuffer.wrap(normals);
-			convertOrder(buffer);
-			dataOutputStream.write(buffer.array());
 		}
 		dataOutputStream.flush();
 	}
