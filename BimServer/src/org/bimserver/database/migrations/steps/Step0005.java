@@ -1,4 +1,4 @@
-package org.bimserver.templating;
+package org.bimserver.database.migrations.steps;
 
 /******************************************************************************
  * Copyright (C) 2009-2013  BIMserver.org
@@ -17,23 +17,21 @@ package org.bimserver.templating;
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-public enum TemplateIdentifier {
-	SELF_REGISTRATION_EMAIL_BODY("self_registration_email_body.template"),
-	SELF_REGISTRATION_EMAIL_SUBJECT("self_registration_email_subject.template"),
-	ADMIN_REGISTRATION_EMAIL_BODY("admin_registration_email_body.template"),
-	ADMIN_REGISTRATION_EMAIL_SUBJECT("admin_registration_email_subject.template"),
-	PASSWORD_RESET_EMAIL_BODY("password_reset_email_body.template"),
-	PASSWORD_RESET_EMAIL_SUBJECT("password_reset_email_subject.template"),
-	NEW_REVISION_EMAIL_BODY("new_revision_email_body.template"),
-	NEW_REVISION_EMAIL_SUBJECT("new_revision_email_subject.template");
-	
-	private final String fileName;
+import org.bimserver.database.migrations.Migration;
+import org.bimserver.database.migrations.Schema;
+import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EcorePackage;
 
-	TemplateIdentifier(String fileName) {
-		this.fileName = fileName;
+public class Step0005 extends Migration {
+
+	@Override
+	public void migrate(Schema schema) {
+		EClass serverSettings = schema.getEClass("store", "ServerSettings");
+		schema.createEAttribute(serverSettings, "sendEmailOnNewRevision", EcorePackage.eINSTANCE.getEBoolean());
 	}
-	
-	public String getFileName() {
-		return fileName;
+
+	@Override
+	public String getDescription() {
+		return "Adding a server setting for sending e-mail";
 	}
 }

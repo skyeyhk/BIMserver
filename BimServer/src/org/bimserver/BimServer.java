@@ -255,8 +255,9 @@ public class BimServer {
 		} catch (Throwable e) {
 			if (LOGGER == null) {
 				e.printStackTrace();
+			} else {
+				LOGGER.error("", e);
 			}
-			LOGGER.error("", e);
 			serverInfoManager.setErrorMessage(e.getMessage());
 		}
 	}
@@ -367,15 +368,11 @@ public class BimServer {
 			} finally {
 				encsession.close();
 			}
-			serverSettingsCache = new ServerSettingsCache(bimDatabase);
-
-			notificationsManager.init();
 
 			protocolBuffersMetaData = new ProtocolBuffersMetaData();
 			protocolBuffersMetaData.load(servicesMap, ProtocolBuffersBimServerClientFactory.class);
 			
 			serverInfoManager.init(this);
-			serverInfoManager.update();
 
 			jsonHandler = new JsonHandler(this);
 			
@@ -659,6 +656,11 @@ public class BimServer {
 	}
 
 	private void initDatabaseDependantItems() throws BimserverDatabaseException {
+		serverSettingsCache = new ServerSettingsCache(bimDatabase);
+		notificationsManager.init();
+
+		serverInfoManager.update();
+		
 		getSerializerFactory().init(pluginManager, bimDatabase);
 		getDeserializerFactory().init(pluginManager, bimDatabase);
 		try {

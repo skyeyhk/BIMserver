@@ -5,10 +5,6 @@
 ##   validationlink: A link where the user can set his/her password
 Dear $name,<br/>
 
-Thank you for registering at $siteaddress.<br/>
+A new revision ($revisionId) with comment "$comment" has been checked-in on project "$projectName".
 
-Please click the following link to set your password:<br/>
-
-$validationlink<br/>
-
-The BIMserver<br/>
+The BIMserver ($siteaddress)<br/>

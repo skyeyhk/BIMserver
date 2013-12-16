@@ -83,7 +83,7 @@ public class BerkeleyKeyValueStore implements KeyValueStore {
 			}
 		}
 		EnvironmentConfig envConfig = new EnvironmentConfig();
-		envConfig.setCachePercent(1);
+		envConfig.setCachePercent(50);
 		envConfig.setAllowCreate(true);
 		envConfig.setTransactional(true);
 		envConfig.setTxnTimeout(5, TimeUnit.SECONDS);
@@ -242,11 +242,13 @@ public class BerkeleyKeyValueStore implements KeyValueStore {
 			cursor = getDatabase(tableName).openCursor(getTransaction(databaseSession), cursorConfig);
 			return new BerkeleySearchingRecordIterator(cursor, mustStartWith, startSearchingAt);
 		} catch (BimserverLockConflictException e) {
-			try {
-				cursor.close();
-				throw e;
-			} catch (DatabaseException e1) {
-				LOGGER.error("", e1);
+			if (cursor != null) {
+				try {
+					cursor.close();
+					throw e;
+				} catch (DatabaseException e1) {
+					LOGGER.error("", e1);
+				}
 			}
 		} catch (DatabaseException e1) {
 			LOGGER.error("", e1);
