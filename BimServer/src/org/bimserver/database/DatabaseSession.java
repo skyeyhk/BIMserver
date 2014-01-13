@@ -688,6 +688,11 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 			return (T) objectsToCommit.getByOid(oid);
 		}
 		EClass eClass = getEClassForOid(oid);
+		if (idEObject != null) {
+			if (!eClass.isSuperTypeOf(idEObject.eClass())) {
+				throw new BimserverDatabaseException("Object with oid " + oid + " is a " + idEObject.eClass().getName() + " but it's cid-part says it's a " + eClass.getName());
+			}
+		}
 		RecordIdentifier recordIdentifier = new RecordIdentifier(query.getPid(), oid, query.getRid());
 		IdEObjectImpl cachedObject = (IdEObjectImpl) objectCache.get(recordIdentifier);
 		if (cachedObject != null) {
@@ -1620,7 +1625,8 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		buffer.putShort(cid);
 		IdEObject idEObject = (IdEObject) value;
 		if (idEObject.getOid() == -1) {
-			((IdEObjectImpl) idEObject).setOid(newOid(object.eClass()));
+			LOGGER.warn("Writing a reference with oid -1, this is not supposed to happen");
+			((IdEObjectImpl) idEObject).setOid(newOid(idEObject.eClass()));
 			((IdEObjectImpl) idEObject).setPid(object.getPid());
 			((IdEObjectImpl) idEObject).setRid(object.getRid());
 		}

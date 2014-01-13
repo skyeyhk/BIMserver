@@ -41,13 +41,11 @@ import org.slf4j.LoggerFactory;
 
 public class FileJarClassLoader extends JarClassLoader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(FileJarClassLoader.class);
-	private final File jarFile;
 	private final Map<String, Class<?>> loadedClasses = new HashMap<String, Class<?>>();
 	private File tempDir;
 
 	public FileJarClassLoader(ClassLoader parentClassLoader, File jarFile, File tempDir) throws FileNotFoundException, IOException {
 		super(parentClassLoader);
-		this.jarFile = jarFile;
 		this.tempDir = tempDir;
 		if (!tempDir.exists()) {
 			tempDir.mkdir();
@@ -100,8 +98,12 @@ public class FileJarClassLoader extends JarClassLoader {
 
 	@Override
 	public URL findResource(final String name) {
+		final File file = new File(tempDir, name);
+		if (!file.exists()) {
+			return null;
+		}
 		try {
-			return new URL(new URL("jar:" + jarFile.toURI().toURL() + "!/" + name), name, new URLStreamHandler() {
+			return new URL(new URL("file:" + this.tempDir.getAbsolutePath() + "/" + name), name, new URLStreamHandler() {
 				@Override
 				protected URLConnection openConnection(URL u) throws IOException {
 					return new URLConnection(u) {
@@ -111,7 +113,7 @@ public class FileJarClassLoader extends JarClassLoader {
 
 						@Override
 						public InputStream getInputStream() throws IOException {
-							return new FileInputStream(new File(tempDir, name));
+							return new FileInputStream(file);
 						}
 					};
 				}

@@ -60,6 +60,18 @@ public class ServerEStore implements BimServerEStore {
 					private static final long serialVersionUID = -1331649607984463166L;
 
 					@Override
+					public int size() {
+						((IdEObject) entry.eObject).load();
+						return super.size();
+					}
+					
+					@Override
+					public boolean isEmpty() {
+						((IdEObject) entry.eObject).load();
+						return super.isEmpty();
+					}
+					
+					@Override
 					public Iterator<Object> iterator() {
 						((IdEObject) entry.eObject).load();
 						return super.iterator();
@@ -69,6 +81,18 @@ public class ServerEStore implements BimServerEStore {
 				result = new BasicEList<Object>(){
 					private static final long serialVersionUID = -2646843411311359243L;
 
+					@Override
+					public int size() {
+						((IdEObject) entry.eObject).load();
+						return super.size();
+					}
+					
+					@Override
+					public boolean isEmpty() {
+						((IdEObject) entry.eObject).load();
+						return super.isEmpty();
+					}
+					
 					@Override
 					public Iterator<Object> iterator() {
 						((IdEObject) entry.eObject).load();
