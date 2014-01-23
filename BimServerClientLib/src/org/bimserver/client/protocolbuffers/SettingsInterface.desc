@@ -1,5 +1,5 @@
 
-ì0
+«1
 SettingsInterface.protoorg.bimserver.pbServiceInterface.protoAdminInterface.protoMetaInterface.proto"
 GetEmailSenderAddressRequest"D
 GetEmailSenderAddressResponse
@@ -9,30 +9,32 @@
 GetProtocolBuffersPortResponse
 errorMessage (	
 value ("
-GetServerSettingsRequest"Ÿ
+GetServerSettingsRequest"Þ
 SServerSettings.
-&sendConfirmationEmailAfterRegistration (!
-generateGeometryOnCheckin (
-allowOnlyWhitelisted (
-protocolBuffersPort (
-siteAddress (	*
-"allowUsersToCreateTopLevelProjects (
-serviceRepositoryUrl (	
+&sendConfirmationEmailAfterRegistration (
+sessionTimeOutSeconds (!
+generateGeometryOnCheckin (
+allowOnlyWhitelisted (
+protocolBuffersPort (
+sendEmailOnNewRevision (
+siteAddress (	*
+"allowUsersToCreateTopLevelProjects (
+serviceRepositoryUrl	 (	
 
-webModules (
+webModules
+ (
 
-smtpServer	 (	
-rid
- (
-allowSelfRegistration (
-whitelistedDomains (	
-oid (
-emailSenderAddress (	
-cacheOutputFiles (
-hideUserListForNonAdmin (
-emailSenderName (	
-webModuleId (
-checkinMergingEnabled ("c
+smtpServer (	
+rid (
+allowSelfRegistration (
+whitelistedDomains (	
+oid (
+emailSenderAddress (	
+cacheOutputFiles (
+hideUserListForNonAdmin (
+emailSenderName (	
+webModuleId (
+checkinMergingEnabled ("c
 GetServerSettingsResponse
 errorMessage (	0
 value (2!.org.bimserver.pb.SServerSettings" 

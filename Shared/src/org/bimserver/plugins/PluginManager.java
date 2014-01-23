@@ -1,7 +1,7 @@
 package org.bimserver.plugins;
 
 /******************************************************************************
- * Copyright (C) 2009-2013  BIMserver.org
+ * Copyright (C) 2009-2014  BIMserver.org
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -123,7 +123,6 @@ public class PluginManager {
 				for (File libFile : libFolder.listFiles()) {
 					if (libFile.getName().toLowerCase().endsWith(".jar")) {
 						FileJarClassLoader jarClassLoader = new FileJarClassLoader(delegatingClassLoader, libFile, new File(tempDir, projectRoot.getName()));
-//						JarClassLoader jarClassLoader = new MemoryJarClassLoader(delegatingClassLoader, libFile);
 						delegatingClassLoader.add(jarClassLoader);
 					}
 				}
@@ -193,7 +192,6 @@ public class PluginManager {
 		}
 		try {
 			FileJarClassLoader jarClassLoader = new FileJarClassLoader(getClass().getClassLoader(), file, new File(tempDir, file.getName()));
-//			JarClassLoader jarClassLoader = new MemoryJarClassLoader(getClass().getClassLoader(), file);
 			InputStream pluginStream = jarClassLoader.getResourceAsStream("plugin/plugin.xml");
 			if (pluginStream == null) {
 				throw new PluginException("No plugin/plugin.xml found");

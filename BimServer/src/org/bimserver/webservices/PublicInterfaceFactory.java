@@ -1,7 +1,7 @@
 package org.bimserver.webservices;
 
 /******************************************************************************
- * Copyright (C) 2009-2013  BIMserver.org
+ * Copyright (C) 2009-2014  BIMserver.org
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -43,7 +43,7 @@ public class PublicInterfaceFactory implements ServiceFactory {
 	}
 	
 	public synchronized ServiceMap get(AccessMethod accessMethod) throws UserException {
-		Authorization authorization = new AnonymousAuthorization(30, TimeUnit.DAYS);
+		Authorization authorization = new AnonymousAuthorization(bimServer.getServerSettingsCache().getServerSettings().getSessionTimeOutSeconds(), TimeUnit.SECONDS);
 		return get(authorization, accessMethod);
 	}
 	

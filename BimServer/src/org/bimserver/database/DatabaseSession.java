@@ -1,7 +1,7 @@
 package org.bimserver.database;
 
 /******************************************************************************
- * Copyright (C) 2009-2013  BIMserver.org
+ * Copyright (C) 2009-2014  BIMserver.org
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,11 @@ package org.bimserver.database;
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
+
+/* 
+ * DatabaseSession is NOT thread safe 
+ * 
+ * */
 
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
@@ -47,8 +52,6 @@ import org.bimserver.emf.MetaDataManager;
 import org.bimserver.emf.OidProvider;
 import org.bimserver.emf.QueryInterface;
 import org.bimserver.ifc.IfcModel;
-import org.bimserver.models.ifc2x3tc1.GeometryData;
-import org.bimserver.models.ifc2x3tc1.GeometryInfo;
 import org.bimserver.models.ifc2x3tc1.Ifc2x3tc1Package;
 import org.bimserver.models.ifc2x3tc1.IfcGloballyUniqueId;
 import org.bimserver.models.ifc2x3tc1.Tristate;
@@ -81,6 +84,7 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.InternalEObject.EStore;
 import org.eclipse.emf.ecore.impl.EEnumImpl;
+import org.eclipse.emf.ecore.impl.EStoreEObjectImpl.BasicEStoreEList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +117,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 	public DatabaseSession(Database database, BimTransaction bimTransaction) {
 		this.database = database;
 		this.bimTransaction = bimTransaction;
-		stackTrace = Thread.currentThread().getStackTrace();
+		this.stackTrace = Thread.currentThread().getStackTrace();
 		if (DEVELOPER_DEBUG) {
 			LOGGER.info("");
 			LOGGER.info("NEW SESSION");
@@ -334,7 +338,12 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 											// referencedObject).isLoadedOrLoading())
 											// {
 											if (feature.isUnique()) {
-												list.add(referencedObject);
+												if (list instanceof BasicEStoreEList) {
+													BasicEStoreEList list2 = (BasicEStoreEList)list;
+													list2.inverseAdd(referencedObject, null);
+												} else {
+													list.add(referencedObject);
+												}
 											} else {
 												list.addUnique(referencedObject);
 											}

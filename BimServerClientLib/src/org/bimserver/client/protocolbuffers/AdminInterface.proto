@@ -1,7 +1,7 @@
 package org.bimserver.pb;
 
 /******************************************************************************
- * Copyright (C) 2009-2013  BIMserver.org
+ * Copyright (C) 2009-2014  BIMserver.org
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -85,27 +85,12 @@ message EnablePluginRequest {
 message GetAllPluginsRequest {
 }
 
-message SModelMergerPluginDescriptor {
-	optional int32 rid = 1;
-	optional int64 oid = 2;
-}
-
-message SSerializerPluginDescriptor {
+message SQueryEnginePluginDescriptor {
 	optional int32 rid = 1;
 	optional int64 oid = 2;
 }
 
 message SDeserializerPluginDescriptor {
-	optional int32 rid = 1;
-	optional int64 oid = 2;
-}
-
-message SModelComparePluginDescriptor {
-	optional int32 rid = 1;
-	optional int64 oid = 2;
-}
-
-message SModelCheckerPluginDescriptor {
 	optional int32 rid = 1;
 	optional int64 oid = 2;
 }
@@ -120,7 +105,12 @@ message SRenderEnginePluginDescriptor {
 	optional int64 oid = 2;
 }
 
-message SQueryEnginePluginDescriptor {
+message SModelComparePluginDescriptor {
+	optional int32 rid = 1;
+	optional int64 oid = 2;
+}
+
+message SModelCheckerPluginDescriptor {
 	optional int32 rid = 1;
 	optional int64 oid = 2;
 }
@@ -130,17 +120,27 @@ message SWebModulePluginDescriptor {
 	optional int64 oid = 2;
 }
 
+message SModelMergerPluginDescriptor {
+	optional int32 rid = 1;
+	optional int64 oid = 2;
+}
+
+message SSerializerPluginDescriptor {
+	optional int32 rid = 1;
+	optional int64 oid = 2;
+}
+
 message SPluginDescriptor {
 	required string __actual_type = 1;
-	optional SModelMergerPluginDescriptor __SModelMergerPluginDescriptor = 2;
-	optional SSerializerPluginDescriptor __SSerializerPluginDescriptor = 3;
-	optional SDeserializerPluginDescriptor __SDeserializerPluginDescriptor = 4;
-	optional SModelComparePluginDescriptor __SModelComparePluginDescriptor = 5;
-	optional SModelCheckerPluginDescriptor __SModelCheckerPluginDescriptor = 6;
-	optional SServicePluginDescriptor __SServicePluginDescriptor = 7;
-	optional SRenderEnginePluginDescriptor __SRenderEnginePluginDescriptor = 8;
-	optional SQueryEnginePluginDescriptor __SQueryEnginePluginDescriptor = 9;
-	optional SWebModulePluginDescriptor __SWebModulePluginDescriptor = 10;
+	optional SQueryEnginePluginDescriptor __SQueryEnginePluginDescriptor = 2;
+	optional SDeserializerPluginDescriptor __SDeserializerPluginDescriptor = 3;
+	optional SServicePluginDescriptor __SServicePluginDescriptor = 4;
+	optional SRenderEnginePluginDescriptor __SRenderEnginePluginDescriptor = 5;
+	optional SModelComparePluginDescriptor __SModelComparePluginDescriptor = 6;
+	optional SModelCheckerPluginDescriptor __SModelCheckerPluginDescriptor = 7;
+	optional SWebModulePluginDescriptor __SWebModulePluginDescriptor = 8;
+	optional SModelMergerPluginDescriptor __SModelMergerPluginDescriptor = 9;
+	optional SSerializerPluginDescriptor __SSerializerPluginDescriptor = 10;
 	optional string defaultName = 11;
 	optional bool enabled = 12;
 	optional string simpleName = 13;
@@ -164,8 +164,8 @@ message GetBimServerInfoRequest {
 message SBimServerInfo {
 	optional int32 projects = 1;
 	optional string latestVersion = 2;
-	optional int64 latestDate = 3;
-	optional int32 users = 4;
+	optional int32 users = 3;
+	optional int64 latestDate = 4;
 	optional string serverLogUrl = 5;
 	optional int32 rid = 6;
 	optional int64 currentDate = 7;
@@ -269,8 +269,8 @@ message GetLatestVersionRequest {
 message SVersion {
 	optional string supportEmail = 1;
 	optional int32 revision = 2;
-	optional int32 minor = 3;
-	optional int32 rid = 4;
+	optional int32 rid = 3;
+	optional int32 minor = 4;
 	optional int64 oid = 5;
 	optional string supportUrl = 6;
 	optional string downloadUrl = 7;
