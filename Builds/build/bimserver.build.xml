@@ -124,6 +124,7 @@
 		<copy todir="builds/BuildWar/WEB-INF/plugins">
 			<fileset dir="builds/pluginlibs" />
 		</copy>
+		<get src="http://test.bimvie.ws/bimviews.jar" dest="builds/BuildWar/WEB-INF/plugins"/>
 		<jar jarfile="builds/BuildWar/WEB-INF/lib/bimserver.jar">
 			<fileset dir="builds/BuildWar/WEB-INF/classes" />
 		</jar>
