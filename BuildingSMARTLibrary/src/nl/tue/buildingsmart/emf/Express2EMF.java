@@ -60,7 +60,6 @@ import org.eclipse.emf.ecore.EEnum;
 import org.eclipse.emf.ecore.EEnumLiteral;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
-import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.EcoreFactory;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.resource.Resource;
@@ -108,30 +107,7 @@ public class Express2EMF {
 		EClass ifcBooleanClass = (EClass) schemaPack.getEClassifier("IfcBoolean");
 		ifcBooleanClass.getESuperTypes().add((EClass) schemaPack.getEClassifier("IfcValue"));
 		doRealDerivedAttributes();
-		updateDerivedAttributes();
 		clean();
-	}
-
-	private void updateDerivedAttributes() {
-		for (EClassifier eClassifier : schemaPack.getEClassifiers()) {
-			if (eClassifier instanceof EClass) {
-				EClass eClass = (EClass)eClassifier;
-				EntityDefinition entityDefinition = schema.getEntityBN(eClass.getName());
-				if (entityDefinition != null) {
-					for (EStructuralFeature eStructuralFeature : eClass.getEAllStructuralFeatures()) {
-						if (entityDefinition.isDerived(eStructuralFeature.getName())) {
-							eStructuralFeature.getEAnnotations().add(createDerivedAnnotation());
-						}
-					}
-				}
-			}
-		}
-	}
-
-	private EAnnotation createDerivedAnnotation() {
-		EAnnotation eAnnotation = EcoreFactory.eINSTANCE.createEAnnotation();
-		eAnnotation.setSource("derived");
-		return eAnnotation;
 	}
 
 	private void addHackedTypes() {
@@ -201,7 +177,7 @@ public class Express2EMF {
 				EClass eClass = (EClass) schemaPack.getEClassifier(entityDefinition.getName());
 				// EStructuralFeature derivedAttribute =
 				// eFactory.createEReference();
-				if (attributeName.getType() != null) {
+				if (attributeName.getType() != null && !attributeName.hasSuper()) {
 					// if (attributeName.getType() instanceof EntityDefinition)
 					// {
 					// derivedAttribute.setEType(schemaPack.getEClassifier(((EntityDefinition)
@@ -217,7 +193,7 @@ public class Express2EMF {
 					if (attributeName.getType() instanceof DefinedType) {
 						EClassifier eType = schemaPack.getEClassifier(((DefinedType) attributeName.getType()).getName());
 						boolean found = false;
-						for (EClass eSuperType : eClass.getESuperTypes()) {
+						for (EClass eSuperType : eClass.getEAllSuperTypes()) {
 							if (eSuperType.getEStructuralFeature(attributeName.getName()) != null) {
 								found = true;
 								break;

@@ -27,26 +27,14 @@ import org.slf4j.LoggerFactory;
 public class LocalDevPluginLoader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(LocalDevPluginLoader.class);
 	
-	public static void loadPlugins(PluginManager pluginManager, File current, File gitDirectory) throws PluginException {
+	public static void loadPlugins(PluginManager pluginManager, File current, File[] pluginDirectories) throws PluginException {
 		LOGGER.info("Loading plugins from " + current.getAbsolutePath());
-		
-//		pluginManager.loadAllPluginsFromDirectoryOfJars(new File("E:\\plugins"));
-		
-		pluginManager.loadAllPluginsFromEclipseWorkspace(current);
-		
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File("E:\\Workspaces\\BIMserver\\Myplugins"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File("E:\\Workspaces\\BIMserver\\IfcOpenShellPlugin"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "bimql\\BimQL"));
-		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "bimvie.ws"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "BIMSie2\\BIMsie"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "BIMsurfer3"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "RGDChecker"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "WebGL-threeJS\\ServerPlugin"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "StatsbyggValidator\\StatsbyggValidator"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "COBie-plugins\\COBiePlugins_Public"));
-//		pluginManager.loadPluginsFromEclipseProjectNoExceptions(new File(gitDirectory, "COBie-plugins\\COBiePlugins_Public"));
-//		pluginManager.loadPluginsFromEclipseProject(new File("../buildingSMARTLibrary"));
-//		pluginManager.loadPluginsFromJar(new File("../Builds/plugins/jqe.jar"));
+
+		if (pluginDirectories != null) {
+			for (File pluginDirectory : pluginDirectories) {
+				pluginManager.loadAllPluginsFromEclipseWorkspaces(pluginDirectory, false);
+			}
+		}
 	}
 	
 	public static PluginManager createPluginManager(File home) throws PluginException {
@@ -58,7 +46,7 @@ public class LocalDevPluginLoader {
 			home.mkdir();
 		}
 		PluginManager pluginManager = new PluginManager(new File(home, "tmp"), System.getProperty("java.class.path"), null, null, null);
-		loadPlugins(pluginManager, current, current);
+		loadPlugins(pluginManager, current, null);
 		pluginManager.initAllLoadedPlugins();
 		return pluginManager;
 	}

@@ -79,6 +79,7 @@ public class IfcStepSerializer extends IfcSerializer {
 	
 	private Iterator<IdEObject> iterator;
 	private UTF8PrintWriter out;
+	private SchemaDefinition schema;
 
 	public IfcStepSerializer(PluginConfiguration pluginConfiguration) {
 	}
@@ -95,6 +96,11 @@ public class IfcStepSerializer extends IfcSerializer {
 		}
 		if (getMode() == Mode.HEADER) {
 			writeHeader(out);
+			try {
+				schema = getPluginManager().requireSchemaDefinition();
+			} catch (PluginException e) {
+				throw new SerializerException(e);
+			}
 			setMode(Mode.BODY);
 			iterator = model.getValues().iterator();
 			out.flush();
@@ -256,8 +262,9 @@ public class IfcStepSerializer extends IfcSerializer {
 		out.print(upperCase);
 		out.print(OPEN_PAREN);
 		boolean isFirst = true;
+		EntityDefinition entityBN = schema.getEntityBN(object.eClass().getName());
 		for (EStructuralFeature feature : eClass.getEAllStructuralFeatures()) {
-			if (!feature.isDerived() && feature.getEAnnotation("hidden") == null) {
+			if (feature.getEAnnotation("hidden") == null && (!entityBN.isDerived(feature.getName()) || entityBN.isDerivedOverride(feature.getName()))) {
 				EClassifier type = feature.getEType();
 				if (type instanceof EEnum) {
 					if (!isFirst) {
@@ -277,7 +284,7 @@ public class IfcStepSerializer extends IfcSerializer {
 					if (!isFirst) {
 						out.print(COMMA);
 					}
-					writeEDataType(out, object, feature);
+					writeEDataType(out, object, entityBN, feature);
 					isFirst = false;
 				}
 			}
@@ -285,8 +292,8 @@ public class IfcStepSerializer extends IfcSerializer {
 		out.println(PAREN_CLOSE_SEMICOLON);
 	}
 
-	private void writeEDataType(PrintWriter out, EObject object, EStructuralFeature feature) throws SerializerException {
-		if (feature.getEAnnotation("derived") != null) {
+	private void writeEDataType(PrintWriter out, EObject object, EntityDefinition entityBN, EStructuralFeature feature) throws SerializerException {
+		if (entityBN != null && entityBN.isDerived(feature.getName())) {
 			out.print(ASTERISK);
 		} else if (feature.isMany()) {
 			writeList(out, object, feature);
@@ -304,7 +311,8 @@ public class IfcStepSerializer extends IfcSerializer {
 				out.print(DASH);
 				out.print(String.valueOf(getExpressId((IdEObject) referencedObject)));
 			} else {
-				if (feature.getEAnnotation("derived") != null) {
+				EntityDefinition entityBN = schema.getEntityBN(object.eClass().getName());
+				if (entityBN != null && entityBN.isDerived(feature.getName())) {
 					out.print(ASTERISK);
 				} else if (feature.isMany()) {
 					writeList(out, object, feature);
@@ -533,15 +541,9 @@ public class IfcStepSerializer extends IfcSerializer {
 				if (type == IFC_PACKAGE_INSTANCE.getIfcBoolean() || type == IFC_PACKAGE_INSTANCE.getIfcLogical() || type == ECORE_PACKAGE_INSTANCE.getEBoolean()) {
 					out.print(BOOLEAN_UNDEFINED);
 				} else {
-					SchemaDefinition schema;
-					try {
-						schema = getPluginManager().requireSchemaDefinition();
-					} catch (PluginException e) {
-						throw new SerializerException(e);
-					}
 					EntityDefinition entityBN = schema.getEntityBN(object.eClass().getName());
 					if (entityBN != null && entityBN.isDerived(feature.getName())) {
-						out.print("*");
+						out.print(ASTERISK);
 					} else {
 						out.print(DOLLAR);
 					}

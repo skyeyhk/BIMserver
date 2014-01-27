@@ -22,10 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.mail.Message;
-import javax.mail.Session;
-import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 
 import org.bimserver.Authenticator;
 import org.bimserver.BimServer;
@@ -33,14 +30,11 @@ import org.bimserver.database.BimserverDatabaseException;
 import org.bimserver.database.BimserverLockConflictException;
 import org.bimserver.database.DatabaseSession;
 import org.bimserver.database.PostCommitAction;
-import org.bimserver.database.Query;
-import org.bimserver.emf.IfcModelInterface;
+import org.bimserver.mail.EmailMessage;
 import org.bimserver.mail.MailSystem;
 import org.bimserver.models.log.AccessMethod;
 import org.bimserver.models.log.NewUserAdded;
-import org.bimserver.models.store.Project;
 import org.bimserver.models.store.ServerSettings;
-import org.bimserver.models.store.StorePackage;
 import org.bimserver.models.store.User;
 import org.bimserver.models.store.UserType;
 import org.bimserver.notifications.NewUserNotification;
@@ -155,15 +149,6 @@ public class AddUserDatabaseAction extends BimDatabaseAction<User> {
 			bimServer.updateUserSettings(getDatabaseSession(), user);
 		}
 		
-		if (user.getUserType() == UserType.USER) {
-			IfcModelInterface projects = getDatabaseSession().getAllOfType(StorePackage.eINSTANCE.getProject(), Query.getDefault());
-			for (Project project : projects.getAllWithSubTypes(Project.class)) {
-				if (project.getName().equals("Test 1") || project.getName().equals("Test 2") || project.getName().equals("Test 3")) {
-					user.getHasRightsOn().add(project);
-				}
-			}
-		}
-		
 		getDatabaseSession().store(user);
 		
 		if (bimServer != null && bimServer.getServerSettingsCache() != null) { // this is only null on server/database initialization
@@ -175,16 +160,15 @@ public class AddUserDatabaseAction extends BimDatabaseAction<User> {
 						String body = null;
 						try {
 							if (MailSystem.isValidEmailAddress(user.getUsername())) {
-								Session mailSession = bimServer.getMailSystem().createMailSession();
+								EmailMessage message = bimServer.getMailSystem().createMessage();
 								
-								Message msg = new MimeMessage(mailSession);
 								String emailSenderAddress = serverSettings.getEmailSenderAddress();
 								InternetAddress addressFrom = new InternetAddress(emailSenderAddress);
-								msg.setFrom(addressFrom);
+								message.setFrom(addressFrom);
 								
 								InternetAddress[] addressTo = new InternetAddress[1];
 								addressTo[0] = new InternetAddress(user.getUsername());
-								msg.setRecipients(Message.RecipientType.TO, addressTo);
+								message.setRecipients(Message.RecipientType.TO, addressTo);
 								
 								Map<String, Object> context = new HashMap<String, Object>();
 								context.put("name", user.getName());
@@ -199,12 +183,12 @@ public class AddUserDatabaseAction extends BimDatabaseAction<User> {
 									body = bimServer.getTemplateEngine().process(context, TemplateIdentifier.ADMIN_REGISTRATION_EMAIL_BODY);
 									subject = bimServer.getTemplateEngine().process(context, TemplateIdentifier.ADMIN_REGISTRATION_EMAIL_SUBJECT);
 								}
-								msg.setContent(body, "text/html");
-								msg.setSubject(subject.trim());
+								message.setContent(body, "text/html");
+								message.setSubject(subject.trim());
 								
 								LOGGER.info("Sending registration e-mail to " + user.getUsername());
 								
-								Transport.send(msg);
+								message.send();
 							}
 						} catch (Exception e) {
 							LOGGER.error(body);

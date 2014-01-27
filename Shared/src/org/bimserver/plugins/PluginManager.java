@@ -74,6 +74,7 @@ import org.slf4j.LoggerFactory;
 public class PluginManager {
 	private final Logger LOGGER = LoggerFactory.getLogger(PluginManager.class);
 	private final Map<Class<? extends Plugin>, Set<PluginContext>> implementations = new LinkedHashMap<Class<? extends Plugin>, Set<PluginContext>>();
+	private final Set<String> loadedLocations = new HashSet<>();
 	private final Set<PluginChangeListener> pluginChangeListeners = new HashSet<PluginChangeListener>();
 	private File tempDir;
 	private final String baseClassPath;
@@ -104,6 +105,9 @@ public class PluginManager {
 	}
 	
 	public void loadPluginsFromEclipseProject(File projectRoot) throws PluginException {
+		if (loadedLocations.contains(projectRoot.getAbsolutePath())) {
+			return;
+		}
 		if (!projectRoot.isDirectory()) {
 			throw new PluginException("No directory: " + projectRoot.getAbsolutePath());
 		}
@@ -128,6 +132,7 @@ public class PluginManager {
 				}
 			}
 			EclipsePluginClassloader pluginClassloader = new EclipsePluginClassloader(delegatingClassLoader, projectRoot);
+			loadedLocations.add(projectRoot.getAbsolutePath());
 			loadPlugins(pluginClassloader, projectRoot.getAbsolutePath(), new File(projectRoot, "bin").getAbsolutePath(), pluginDescriptor, PluginSourceType.ECLIPSE_PROJECT);
 		} catch (JAXBException e) {
 			throw new PluginException(e);
@@ -149,6 +154,8 @@ public class PluginManager {
 					Class implementationClass = classLoader.loadClass(implementationClassName);
 					Plugin plugin = (Plugin) implementationClass.newInstance();
 					loadPlugin(interfaceClass, location, classLocation, plugin, classLoader, pluginType);
+				} catch (NoClassDefFoundError e) {
+					throw new PluginException("Implementation class '" + implementationClassName + "' not found", e);
 				} catch (ClassNotFoundException e) {
 					throw new PluginException("Implementation class '" + implementationClassName + "' not found", e);
 				} catch (InstantiationException e) {
@@ -186,6 +193,9 @@ public class PluginManager {
 	}
 
 	public void loadPluginsFromJar(File file) throws PluginException {
+		if (loadedLocations.contains(file.getAbsolutePath())) {
+			return;
+		}
 		LOGGER.debug("Loading plugins from " + file.getAbsolutePath());
 		if (!file.isFile()) {
 			throw new PluginException("Not a file: " + file.getAbsolutePath());
@@ -201,6 +211,7 @@ public class PluginManager {
 				throw new PluginException("No plugin descriptor could be created");
 			}
 			LOGGER.debug(pluginDescriptor.toString());
+			loadedLocations.add(file.getAbsolutePath());
 			loadPlugins(jarClassLoader, file.getAbsolutePath(), file.getAbsolutePath(), pluginDescriptor, PluginSourceType.JAR_FILE);
 		} catch (JAXBException e) {
 			throw new PluginException(e);
@@ -410,7 +421,7 @@ public class PluginManager {
 		}
 	}
 	
-	public void initAllLoadedPlugins() {
+	public void initAllLoadedPlugins() throws PluginException {
 		LOGGER.debug("Initializig all loaded plugins");
 		for (Class<? extends Plugin> pluginClass : implementations.keySet()) {
 			Set<PluginContext> set = implementations.get(pluginClass);
@@ -420,8 +431,8 @@ public class PluginManager {
 					if (!plugin.isInitialized()) {
 						plugin.init(this);
 					}
-				} catch (Exception e) {
-					LOGGER.error("", e);
+				} catch (Throwable e) {
+					pluginContext.setEnabled(false, false);
 				}
 			}
 		}
@@ -486,15 +497,26 @@ public class PluginManager {
 		return getPluginByClassName(QueryEnginePlugin.class, className, onlyEnabled);
 	}
 
-	public void loadAllPluginsFromEclipseWorkspace(File file) throws PluginException {
+	public void loadAllPluginsFromEclipseWorkspace(File file, boolean showExceptions) throws PluginException {
 		for (File project : file.listFiles()) {
 			File pluginDir = new File(project, "plugin");
 			if (pluginDir.exists()) {
 				File pluginFile = new File(pluginDir, "plugin.xml");
 				if (pluginFile.exists()) {
-					loadPluginsFromEclipseProject(project);
+					if (showExceptions) {
+						loadPluginsFromEclipseProject(project);
+					} else {
+						loadPluginsFromEclipseProjectNoExceptions(project);
+					}
 				}
 			}
+		}
+	}
+	
+	public void loadAllPluginsFromEclipseWorkspaces(File directory, boolean showExceptions) throws PluginException {
+		loadAllPluginsFromEclipseWorkspace(directory, showExceptions);
+		for (File workspace : directory.listFiles()) {
+			loadAllPluginsFromEclipseWorkspace(workspace, showExceptions);
 		}
 	}
 
