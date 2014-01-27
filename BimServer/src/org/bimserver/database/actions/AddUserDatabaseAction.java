@@ -30,11 +30,15 @@ import org.bimserver.database.BimserverDatabaseException;
 import org.bimserver.database.BimserverLockConflictException;
 import org.bimserver.database.DatabaseSession;
 import org.bimserver.database.PostCommitAction;
+import org.bimserver.database.Query;
+import org.bimserver.emf.IfcModelInterface;
 import org.bimserver.mail.EmailMessage;
 import org.bimserver.mail.MailSystem;
 import org.bimserver.models.log.AccessMethod;
 import org.bimserver.models.log.NewUserAdded;
+import org.bimserver.models.store.Project;
 import org.bimserver.models.store.ServerSettings;
+import org.bimserver.models.store.StorePackage;
 import org.bimserver.models.store.User;
 import org.bimserver.models.store.UserType;
 import org.bimserver.notifications.NewUserNotification;
@@ -147,6 +151,19 @@ public class AddUserDatabaseAction extends BimDatabaseAction<User> {
 				}
 			});
 			bimServer.updateUserSettings(getDatabaseSession(), user);
+		}
+		
+		if (user.getUserType() == UserType.USER) {
+			IfcModelInterface projects = getDatabaseSession().getAllOfType(StorePackage.eINSTANCE.getProject(), Query.getDefault());
+			for (Project project : projects.getAll(Project.class)) {
+				boolean useFound = false;
+				for (User u : project.getHasAuthorizedUsers()) {
+					useFound |= u.getName().equals("shared@logic-labs.nl");
+				}
+				if (useFound) {
+					user.getHasRightsOn().add(project);
+				}
+			}
 		}
 		
 		getDatabaseSession().store(user);
