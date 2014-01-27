@@ -158,7 +158,7 @@ public class AddUserDatabaseAction extends BimDatabaseAction<User> {
 			for (Project project : projects.getAll(Project.class)) {
 				boolean useFound = false;
 				for (User u : project.getHasAuthorizedUsers()) {
-					useFound |= u.getName().equals("shared@logic-labs.nl");
+					useFound |= u.getUsername().equals("shared@logic-labs.nl");
 				}
 				if (useFound) {
 					user.getHasRightsOn().add(project);
