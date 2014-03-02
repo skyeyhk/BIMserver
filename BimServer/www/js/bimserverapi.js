@@ -1,10 +1,4 @@
-if (typeof console === "undefined") {
-	console = {
-		log: function(msg){
-			print(msg);
-		}
-	};
-}
+"use strict"
 
 function BimServerApi(baseUrl, notifier) {
 	var othis = this;
@@ -49,7 +43,12 @@ function BimServerApi(baseUrl, notifier) {
 		UPDATEMODELMERGER_DONE: "Model merger successfully updated",
 		UPDATEQUERYENGINE_DONE: "Query engine plugin successfully updated",
 		UPDATEOBJECTIDM_DONE: "ObjectIDM succesfully updated",
-		UPDATEDESERIALIZER_DONE: "Serializer succesfully updated"
+		UPDATEDESERIALIZER_DONE: "Serializer succesfully updated",
+		ADDUSERTOPROJECT_DONE: "User successfully added to project",
+		REMOVEUSERFROMPROJECT_DONE: "User successfully removed from project",
+		UNDELETEPROJECT_DONE: "Project successfully undeleted",
+		DELETEPROJECT_DONE: "Project successfully deleted",
+		ADDPROJECT_DONE: "Project successfully added"
 	}
 
 	othis.token = null;
@@ -61,10 +60,8 @@ function BimServerApi(baseUrl, notifier) {
 	othis.notifier = notifier;
 	if (othis.notifier == null) {
 		othis.notifier = {
-			error: function(){},
-			info: function(){},
-			warn: function(){},
-			setStatus: function(message, timeout){},
+			setInfo: function(message, timeout){},
+			setSuccess: function(message, timeout){},
 			setError: function(){},
 			resetStatus: function(){},
 			resetStatusQuick: function(){},
@@ -75,6 +72,8 @@ function BimServerApi(baseUrl, notifier) {
 	othis.user = null;
 	othis.listeners = {};
 	othis.autoLoginTried = false;
+	othis.serializersByPluginClassName = [];
+	othis.debug = false;
 
 	this.init = function(callback) {
 		$.getJSON(othis.baseUrl + "/js/ifc2x3tc1.js", function(result){
@@ -83,24 +82,25 @@ function BimServerApi(baseUrl, notifier) {
 		});
 	};
 
+	this.log = function(message){
+		if (othis.debug) {
+			console.log(message)
+		}
+	};
+	
 	this.translate = function(key) {
 		key = key.toUpperCase();
 		if (othis.translations[key] != null) {
 			return othis.translations[key];
 		}
-		console.log("translation for " + key + " not found");
+		othis.log("translation for " + key + " not found");
 		return key;
 	};
 
 	this.login = function(username, password, rememberme, callback, errorCallback, options) {
-		if(typeof options == 'undefined') {
-			options = { async: true };
-		}
-
 		var request = {
 			username: username,
-			password: password,
-			async: options.async
+			password: password
 		};
 		othis.call("Bimsie1AuthInterface", "login", request, function(data){
 			othis.token = data;
@@ -111,24 +111,38 @@ function BimServerApi(baseUrl, notifier) {
 				$.cookie("autologin" + window.document.location.port, othis.token, { path: "/"});
 				$.cookie("address" + window.document.location.port, othis.baseUrl, { path: "/"});
 			}
-			othis.notifier.info("Login successful");
+			othis.notifier.setInfo("Login successful", 2000);
 			othis.resolveUser();
 			callback();
 		}, errorCallback);
 	};
 
+	this.downloadViaWebsocket = function(msg){
+		msg.action = "download";
+		msg.token = othis.token;
+		othis.server.send(msg);
+	};
+	
+	this.setBinaryDataListener = function(listener){
+		othis.binaryDataListener = listener;
+	};
+	
 	this.processNotification = function(message) {
-		var intf = message["interface"];
-		if (othis.listeners[intf] != null) {
-			if (othis.listeners[intf][message.method] != null) {
-				othis.listeners[intf][message.method].forEach(function(listener) {
-					var ar = [];
-					var i=0;
-					for (var key in message.parameters) {
-						ar[i++] = message.parameters[key];
-					}
-					listener.apply(null, ar);
-				});
+		if (message instanceof ArrayBuffer) {
+			othis.binaryDataListener(message);
+		} else {
+			var intf = message["interface"];
+			if (othis.listeners[intf] != null) {
+				if (othis.listeners[intf][message.method] != null) {
+					othis.listeners[intf][message.method].forEach(function(listener) {
+						var ar = [];
+						var i=0;
+						for (var key in message.parameters) {
+							ar[i++] = message.parameters[key];
+						}
+						listener.apply(null, ar);
+					});
+				}
 			}
 		}
 	};
@@ -145,7 +159,7 @@ function BimServerApi(baseUrl, notifier) {
 	this.logout = function(callback) {
 		$.removeCookie("autologin" + window.document.location.port, {path: "/"});
 		othis.call("Bimsie1AuthInterface", "logout", {}, function(){
-			othis.notifier.info("Logout successful");
+			othis.notifier.setInfo("Logout successful");
 			callback();
 		});
 	};
@@ -165,6 +179,17 @@ function BimServerApi(baseUrl, notifier) {
 			othis.server.connect(callback);
 		}
 	};
+	
+	this.getSerializerByPluginClassName = function(pluginClassName, callback) {
+		if (othis.serializersByPluginClassName[name] == null) {
+			othis.call("PluginInterface", "getSerializerByPluginClassName", {pluginClassName : pluginClassName}, function(serializer) {
+				othis.serializersByPluginClassName[name] = serializer;
+				callback(serializer);
+			});
+		} else {
+			callback(othis.serializersByPluginClassName[name]);
+		}
+	},
 
 	this.register = function(interfaceName, methodName, callback, registerCallback) {
 		if (othis.listeners[interfaceName] == null) {
@@ -370,7 +395,7 @@ function BimServerApi(baseUrl, notifier) {
 		if (requests.length == 1) {
 			var request = requests[0];
 			if (othis.interfaceMapping[request[0]] == null) {
-				console.log("Interface " + request[0] + " not found");
+				othis.log("Interface " + request[0] + " not found");
 			}
 			request = {request: othis.createRequest(othis.interfaceMapping[request[0]], request[1], request[2])};
 		} else if (requests.length > 1) {
@@ -383,7 +408,7 @@ function BimServerApi(baseUrl, notifier) {
 			};
 		}
 
-		othis.notifier.clear();
+//		othis.notifier.clear();
 
 		if (othis.token != null) {
 			request.token = othis.token;
@@ -404,44 +429,34 @@ function BimServerApi(baseUrl, notifier) {
 			}
 			if (typeof window !== 'undefined' && window.setTimeout != null) {
 				othis.lastBusyTimeOut = window.setTimeout(function(){
-					othis.notifier.setStatus(othis.translate(key + "_BUSY"), -1);
+					othis.notifier.setInfo(othis.translate(key + "_BUSY"), -1);
 					showedBusy = true;
 				}, 200);
 			}
 		}
 
-		othis.notifier.resetStatusQuick();
+//		othis.notifier.resetStatusQuick();
 
-		var async = true;
-		if(typeof request.request != 'undefined' && typeof request.request.parameters != 'undefined' && typeof request.request.parameters.async != 'undefined') {
-			async = request.request.parameters.async;
-			delete request.request.parameters.async;
-		}
-
-		console.log((async ? "async" : "sync"), "request", request);
+		othis.log("request", request);
 
 		$.ajax(othis.address, {
 			type: "POST",
 			contentType: 'application/json',
 			data: JSON.stringify(request),
 			dataType: "json",
-			async: async,
 			success: function(data) {
-				console.log("response", data);
+				othis.log("response", data);
 				var errorsToReport = [];
 				if (requests.length == 1) {
 					if (showBusy) {
 						if (othis.lastBusyTimeOut != null) {
 							clearTimeout(othis.lastBusyTimeOut);
 						}
-						if (showedBusy) {
-							othis.notifier.resetStatus();
-						}
 					}
 					if (data.response.exception != null) {
 						if (data.response.exception.message == "Invalid token" && !othis.autoLoginTried && $.cookie("username" + window.document.location.port) != null && $.cookie("autologin" + window.document.location.port) != null) {
 							othis.autologin($.cookie("username" + window.document.location.port), $.cookie("autologin" + window.document.location.port), function(){
-								console.log("Trying to connect with autologin");
+								othis.log("Trying to connect with autologin");
 								othis.multiCall(requests, callback, errorCallback);
 							});
 						} else {
@@ -450,11 +465,19 @@ function BimServerApi(baseUrl, notifier) {
 									clearTimeout(othis.lastTimeOut);
 								}
 								othis.notifier.setError(data.response.exception.message);
+							} else {
+								if (showedBusy) {
+									othis.notifier.resetStatus();
+								}
 							}
 						}
 					} else {
 						if (showDone) {
-							othis.notifier.setStatus(othis.translate(key + "_DONE"), 5000);
+							othis.notifier.setSuccess(othis.translate(key + "_DONE"), 5000);
+						} else {
+							if (showedBusy) {
+								othis.notifier.resetStatus();
+							}
 						}
 					}
 				} else if (requests.length > 1) {
@@ -482,9 +505,9 @@ function BimServerApi(baseUrl, notifier) {
 				if (textStatus == "abort") {
 					// ignore
 				} else {
-					console.log(errorThrown);
-					console.log(textStatus);
-					console.log(jqXHR);
+					othis.log(errorThrown);
+					othis.log(textStatus);
+					othis.log(jqXHR);
 					if (othis.lastTimeOut != null) {
 						clearTimeout(othis.lastTimeOut);
 					}
@@ -512,16 +535,20 @@ function BimServerApi(baseUrl, notifier) {
 		return model;
 	};
 
+	this.callWithNoIndication = function(interfaceName, methodName, data, callback) {
+		othis.call(interfaceName, methodName, data, callback, null, false, false, false);
+	};
+
 	this.callWithFullIndication = function(interfaceName, methodName, data, callback) {
-		othis.call(interfaceName, methodName, data, callback, true, true, true);
+		othis.call(interfaceName, methodName, data, callback, null, true, true, true);
 	};
 
 	this.callWithUserErrorIndication = function(action, data, callback) {
-		othis.call(interfaceName, methodName, data, callback, false, false, true);
+		othis.call(interfaceName, methodName, data, callback, null, false, false, true);
 	};
 
 	this.callWithUserErrorAndDoneIndication = function(action, data, callback) {
-		othis.call(interfaceName, methodName, data, callback, false, true, true);
+		othis.call(interfaceName, methodName, data, callback, null, false, true, true);
 	};
 
 	this.setToken = function(token) {
@@ -603,7 +630,11 @@ function Model(bimServerApi, poid, roid) {
 	othis.runningCalls = 0;
 	othis.loading = false;
 	othis.logging = true;
+	
+	othis.changes = 0;
 
+	othis.changeListeners = [];
+	
 	othis.transactionSynchronizer = new Synchronizer(function(callback){
 		bimServerApi.call("Bimsie1LowLevelInterface", "startTransaction", {poid: othis.poid}, function(tid){
 			callback(tid);
@@ -670,6 +701,8 @@ function Model(bimServerApi, poid, roid) {
 			othis.resolveReferences(object, function(){
 				bimServerApi.call("Bimsie1LowLevelInterface", "createObject", {tid: tid, className: className}, function(oid){
 					object.__oid = oid;
+					othis.objects[object.__oid] = object;
+					object.__state = "LOADED";
 					if (callback != null) {
 						callback(object);
 					}
@@ -682,12 +715,12 @@ function Model(bimServerApi, poid, roid) {
 
 	this.incrementRunningCalls = function(method){
 		othis.runningCalls++;
-		console.log("inc", method, othis.runningCalls);
+		othis.bimServerApi.log("inc", method, othis.runningCalls);
 	};
 
 	this.decrementRunningCalls = function(method){
 		othis.runningCalls--;
-		console.log("dec", method, othis.runningCalls);
+		othis.bimServerApi.log("dec", method, othis.runningCalls);
 		if (othis.runningCalls == 0) {
 			othis.doneCallbacks.forEach(function(cb){
 				cb(othis);
@@ -697,7 +730,7 @@ function Model(bimServerApi, poid, roid) {
 
 	this.done = function(doneCallback){
 		if (othis.runningCalls == 0) {
-			console.log("immediately done");
+			othis.bimServerApi.log("immediately done");
 			doneCallback(othis);
 		} else {
 			othis.doneCallbacks.push(doneCallback);
@@ -721,13 +754,59 @@ function Model(bimServerApi, poid, roid) {
 			});
 		});
 	};
+	
+	this.abort = function(callback){
+		othis.transactionSynchronizer.fetch(function(tid){
+			bimServerApi.call("Bimsie1LowLevelInterface", "abortTransaction", {tid: tid}, function(roid){
+				if (callback != null) {
+					callback();
+				}
+			});
+		});
+	};
+	
+	this.addChangeListener = function(changeListener){
+		othis.changeListeners.push(changeListener);
+	};
 
+	this.incrementChanges = function(){
+		othis.changes++;
+		othis.changeListeners.forEach(function(changeListener){
+			changeListener(othis.changes);
+		});
+	};
+	
 	this.resolveFields = function(object, type) {
 		object.oid = object.__oid;
 		for (var fieldName in type.fields){
 			var field = type.fields[fieldName];
 			if (field.reference) {
 				(function(object, field, fieldName){
+					object["set" + fieldName.firstUpper() + "Wrapped"] = function(typeName, value) {
+						object[fieldName] = {__type: typeName, value: value};
+						othis.incrementRunningCalls("set" + fieldName.firstUpper() + "Wrapped");
+						othis.transactionSynchronizer.fetch(function(tid){
+							var type = othis.bimServerApi.schema[typeName];
+							var wrappedValueType = type.fields.wrappedValue;
+							if (wrappedValueType.type == "string") {
+								bimServerApi.call("Bimsie1LowLevelInterface", "setWrappedStringAttribute", {
+									tid: tid,
+									oid: object.__oid,
+									attributeName: fieldName,
+									type: typeName,
+									value: value
+								}, function(){
+									if (object.changedFields == null) {
+										object.changedFields = {};
+									}
+									object.changedFields[fieldName] = true;
+									othis.changedObjectOids[object.oid] = true;
+									othis.incrementChanges();
+									othis.decrementRunningCalls("set" + fieldName.firstUpper() + "Wrapped");
+								});
+							}
+						});
+					};
 					object["set" + fieldName.firstUpper()] = function(value) {
 						othis.transactionSynchronizer.fetch(function(tid){
 							object[fieldName] = value;
@@ -762,41 +841,104 @@ function Model(bimServerApi, poid, roid) {
 							}
 						});
 					};
+					object["add" + fieldName.firstUpper()] = function(value, callback) {
+						othis.transactionSynchronizer.fetch(function(tid){
+							if (object[fieldName] == null) {
+								object[fieldName] = [];
+							}
+							object[fieldName].push(value);
+							othis.incrementRunningCalls("add" + fieldName.firstUpper());
+							bimServerApi.call("Bimsie1LowLevelInterface", "addReference", {
+								tid: tid,
+								oid: object.__oid,
+								referenceName: fieldName,
+								referenceOid: value.__oid
+							}, function(){
+								othis.decrementRunningCalls("add" + fieldName.firstUpper());
+								if (object.changedFields == null) {
+									object.changedFields = {};
+								}
+								object.changedFields[fieldName] = true;
+								othis.changedObjectOids[object.oid] = true;
+								if (callback != null) {
+									callback();
+								}
+							});
+						});
+					};
+					object["remove" + fieldName.firstUpper()] = function(value, callback) {
+						othis.transactionSynchronizer.fetch(function(tid){
+							var list = object[fieldName];
+							var index = list.indexOf(value);
+							list.splice(index, 1);
+							
+							othis.incrementRunningCalls("remove" + fieldName.firstUpper());
+							bimServerApi.call("Bimsie1LowLevelInterface", "removeReference", {
+								tid: tid,
+								oid: object.__oid,
+								referenceName: fieldName,
+								index: index
+							}, function(){
+								othis.decrementRunningCalls("remove" + fieldName.firstUpper());
+								if (object.changedFields == null) {
+									object.changedFields = {};
+								}
+								object.changedFields[fieldName] = true;
+								othis.changedObjectOids[object.oid] = true;
+								if (callback != null) {
+									callback();
+								}
+							});
+						});
+					};
 					object["get" + fieldName.firstUpper()] = function(callback) {
 						if (object[fieldName] != null) {
-							return object[fieldName];
+							if (field.many) {
+								object[fieldName].forEach(function(item){
+									callback(item);
+								});
+								return object[fieldName];
+							} else {
+								callback(object[fieldName]);
+								return object[fieldName];
+							}							
+						}
+						var embValue = object["__emb" + fieldName];
+						if (embValue != null) {
+							callback(embValue);
+							return embValue;
 						}
 						var value = object["__ref" + fieldName];
 						if (field.many) {
 							if (object[fieldName] == null) {
 								object[fieldName] = [];
 							}
-							value.forEach(function(val){
-								var ref = othis.objects[val];
-								if (ref == null) {
-									othis.get(value, function(v){
-										object[fieldName].push(v);
-										callback(v);
-									});
-								} else {
-									object[fieldName].push(ref);
-									callback(ref);
-								}
-							});
+							if (value != null) {
+								othis.get(value, function(v){
+									object[fieldName].push(v);
+									callback(v);
+								});
+							}
 							return object[fieldName];
 						} else if (value != null) {
 							var ref = othis.objects[value];
 							if (value == -1) {
 								callback(null);
-							} else if (ref == null) {
+							} else if (ref == null || ref.__state == "NOT_LOADED") {
 								othis.get(value, function(v){
 									object[fieldName] = v;
-									callback(v);
+									if (v.__state == "NOT_LOADED") {
+										othis.resolveReferences(v, callback);
+									} else {
+										callback(v);
+									}
 								});
 							} else {
 								object[fieldName] = ref;
 								callback(ref);
 							}
+						} else {
+							callback(null);
 						}
 					};
 				})(object, field, fieldName);
@@ -826,6 +968,7 @@ function Model(bimServerApi, poid, roid) {
 						return object[fieldName];
 					};
 					object["set" + fieldName.firstUpper()] = function(value) {
+						object[fieldName] = value;
 						othis.incrementRunningCalls("set" + fieldName.firstUpper());
 						othis.transactionSynchronizer.fetch(function(tid){
 							if (field.many) {
@@ -892,7 +1035,7 @@ function Model(bimServerApi, poid, roid) {
 										othis.decrementRunningCalls("set" + fieldName.firstUpper());
 									});
 								} else {
-									console.log("Unimplemented type " + typeof value);
+									othis.bimServerApi.log("Unimplemented type " + typeof value);
 									othis.decrementRunningCalls("set" + fieldName.firstUpper());
 								}
 								object[fieldName] = value;
@@ -915,9 +1058,29 @@ function Model(bimServerApi, poid, roid) {
 		});
 		othis.resolveFields(object, realType);
 	};
-
+	
+	this.isA = function(typeSubject, typeName){
+		var isa = false;
+		var subject = othis.bimServerApi.schema[typeSubject];
+		if (typeSubject == typeName) {
+			return true;
+		}
+		subject.superclasses.forEach(function(superclass){
+			if (superclass == typeName) {
+				isa = true;
+			}
+			if (othis.isA(superclass, typeName)) {
+				isa = true;
+			}
+		});
+		return isa;
+	};
+	
 	this.resolveReferences = function(object, callback){
-		// TODO move this function to prototype
+		// TODO move these functions to prototype
+		object.isA = function(typeName){
+			return othis.isA(object.__type, typeName);
+		};
 		object.remove = function(removeCallback){
 			othis.incrementRunningCalls("removeObject");
 			othis.transactionSynchronizer.fetch(function(tid){
@@ -936,7 +1099,7 @@ function Model(bimServerApi, poid, roid) {
 		}
 		othis.resolveType(othis.bimServerApi.schema, object, realType);
 		if (callback != null) {
-			callback();
+			callback(object);
 		}
 	};
 
@@ -962,11 +1125,13 @@ function Model(bimServerApi, poid, roid) {
 		}
 		othis.waitForLoaded(function(){
 			list.forEach(function(item){
-				if (fetchingMap[item] != null) {
+				if (targetMap[item] != null) {
 					// Already loaded? Remove from list and call callback
-					callback(fetchingMap[item]);
-					var index = list.indexOf(item);
-					list.splice(index, 1);
+					if (targetMap[item].__state == "LOADED") {
+						var index = list.indexOf(item);
+						list.splice(index, 1);
+						callback(targetMap[item]);
+					}
 				} else if (fetchingMap[item] != null) {
 					// Already loading? Add the callback to the list and remove from fetching list
 					fetchingMap[item].push(callback);
@@ -999,7 +1164,7 @@ function Model(bimServerApi, poid, roid) {
 									othis.resolveReferences(object, function(){
 										var item = getValueMethod(object);
 										// Checking the value again, because sometimes serializers send more objects...
-										if (item != null) {
+										if ($.inArray(item, list) != -1) {
 											targetMap[item] = object;
 											if (fetchingMap[item] != null) {
 												fetchingMap[item].forEach(function(cb){
@@ -1018,7 +1183,7 @@ function Model(bimServerApi, poid, roid) {
 									});
 								});
 							} else {
-								console.log("Object with " + keyname + " " + list + " not found");
+								othis.bimServerApi.log("Object with " + keyname + " " + list + " not found");
 							}
 						});
 					});
@@ -1041,7 +1206,28 @@ function Model(bimServerApi, poid, roid) {
 		othis.getByX("getByName", "name", othis.namesFetching, othis.objectsByName, "downloadByNames", "names", function(object){return object.getName == null ? null : object.getName()}, names, callback);
 	};
 
+	this.createPromise = function(){
+		var promise = {
+			isDone: false,
+			done: function(callback){
+				if (promise.isDone) {
+					callback();
+				} else {
+					promise.callback = callback;
+				}
+			},
+			fire: function(){
+				promise.isDone = true;
+				if (promise.callback != null) {
+					promise.callback();
+				}
+			}
+		};
+		return promise;
+	};
+	
 	this.getAllOfType = function(type, includeAllSubTypes, callback) {
+		var promise = othis.createPromise();
 		othis.incrementRunningCalls("getAllOfType");
 		othis.waitForLoaded(function(){
 			if (othis.loadedDeep) {
@@ -1059,7 +1245,7 @@ function Model(bimServerApi, poid, roid) {
 						classNames: [type],
 						includeAllSubtypes: includeAllSubTypes,
 						serializerOid: jsonSerializerOid,
-						useObjectIDM: true,
+						useObjectIDM: false,
 						deep: false,
 						sync: true
 					}, function(laid){
@@ -1070,21 +1256,24 @@ function Model(bimServerApi, poid, roid) {
 						$.getJSON(url, function(data, textStatus, jqXHR){
 							data.objects.forEach(function(object){
 								othis.objects[object.__oid] = object;
-							});
-							for (var oid in othis.objects) {
-								var object = othis.objects[oid];
 								othis.resolveReferences(object, function(){
-									callback(object);
+									if (object.__state == "LOADED") {
+										if (object.isA(type)) {
+											callback(object);
+										}
+									}
 								});
-							}
+							});
 							bimServerApi.call("ServiceInterface", "cleanupLongAction", {actionId: laid}, function(){
 								othis.decrementRunningCalls("getAllOfType");
+								promise.fire();
 							});
 						});
 					});
 				});
 			}
 		});
+		return promise;
 	};
 }
 
@@ -1100,6 +1289,7 @@ function BimServerWebSocket(baseUrl, bimServerApi) {
 		var location = bimServerApi.baseUrl.toString().replace('http://', 'ws://').replace('https://', 'wss://') + "/stream";
 		if (typeof(WebSocket) == "function") {
 			this._ws = new WebSocket(location);
+			this._ws.binaryType = "arraybuffer";
 			this._ws.onopen = this._onopen;
 			this._ws.onmessage = this._onmessage;
 			this._ws.onclose = this._onclose;
@@ -1117,29 +1307,33 @@ function BimServerWebSocket(baseUrl, bimServerApi) {
 
 	this.send = function(object) {
 		var str = JSON.stringify(object);
-		console.log("Sending", str);
+		bimServerApi.log("Sending", str);
 		othis._send(str);
 	};
 
 	this._onmessage = function(message) {
-		var incomingMessage = JSON.parse(message.data);
-		console.log("incoming", incomingMessage);
-		if (incomingMessage.welcome != null) {
-			othis.send({"token": bimServerApi.token});
-		} else if (incomingMessage.endpointid != null) {
-			othis.endPointId = incomingMessage.endpointid;
-			othis.connected = true;
-			othis.openCallbacks.forEach(function(callback){
-				callback();
-			});
-			othis.openCallbacks = [];
+		if (message.data instanceof ArrayBuffer) {
+			othis.listener(message.data);
 		} else {
-			if (incomingMessage.request != null) {
-				othis.listener(incomingMessage.request);
-			} else if (incomingMessage.requests != null) {
-				incomingMessage.requests.forEach(function(request){
-					othis.listener(request);
+			var incomingMessage = JSON.parse(message.data);
+			bimServerApi.log("incoming", incomingMessage);
+			if (incomingMessage.welcome != null) {
+				othis.send({"token": bimServerApi.token});
+			} else if (incomingMessage.endpointid != null) {
+				othis.endPointId = incomingMessage.endpointid;
+				othis.connected = true;
+				othis.openCallbacks.forEach(function(callback){
+					callback();
 				});
+				othis.openCallbacks = [];
+			} else {
+				if (incomingMessage.request != null) {
+					othis.listener(incomingMessage.request);
+				} else if (incomingMessage.requests != null) {
+					incomingMessage.requests.forEach(function(request){
+						othis.listener(request);
+					});
+				}
 			}
 		}
 	};

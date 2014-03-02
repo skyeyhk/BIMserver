@@ -84,7 +84,6 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.InternalEObject.EStore;
 import org.eclipse.emf.ecore.impl.EEnumImpl;
-import org.eclipse.emf.ecore.impl.EStoreEObjectImpl.BasicEStoreEList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +146,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 			LOGGER.info("END SESSION");
 		}
 	}
-
+	
 	public void commit(ProgressHandler progressHandler) throws BimserverDatabaseException, ServiceException {
 		checkOpen();
 		try {
@@ -162,6 +161,8 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 				database.getKeyValueStore().storeNoOverwrite(recordIdentifier.getPackageName() + "_" + recordIdentifier.getClassName(), keyBuffer.array(), new byte[] { -1 }, this);
 				writes++;
 			}
+			// This buffer is reused for the values, it's position must be reset at the end of the loop, and the convertObjectToByteArray function is responsible for settings the buffer's position to the end of the (used part of the) buffer
+			ByteBuffer reusableBuffer = ByteBuffer.allocate(32768);
 			for (IdEObject object : objectsToCommit) {
 				if (object.getOid() == -1) {
 					throw new BimserverDatabaseException("Cannot store object with oid -1");
@@ -170,17 +171,19 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 				if (DEVELOPER_DEBUG) {
 					LOGGER.info("Write: " + object.eClass().getName() + " " + "pid=" + object.getPid() + " oid=" + object.getOid() + " rid=" + object.getRid());
 				}
+				ByteBuffer valueBuffer = convertObjectToByteArray(object, reusableBuffer);
 				if (object.eClass().getEAnnotation("nolazyload") == null) {
 					database.getKeyValueStore().storeNoOverwrite(object.eClass().getEPackage().getName() + "_" + object.eClass().getName(), keyBuffer.array(),
-							convertObjectToByteArray(object).array(), this);
+							valueBuffer.array(), 0, valueBuffer.position(), this);
 				} else {
 					database.getKeyValueStore().store(object.eClass().getEPackage().getName() + "_" + object.eClass().getName(), keyBuffer.array(),
-							convertObjectToByteArray(object).array(), this);
+							valueBuffer.array(), 0, valueBuffer.position(), this);
 				}
 				if (progressHandler != null) {
 					progressHandler.progress(++current, objectsToCommit.size());
 				}
 				writes++;
+				reusableBuffer.position(0);
 			}
 			bimTransaction.commit();
 			database.incrementCommittedWrites(writes);
@@ -253,7 +256,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		return convertByteArrayToObject(object, originalQueryClass, eClass, oid, buffer, model, rid, query, todoList);
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "unused" })
 	private IdEObject convertByteArrayToObject(IdEObject idEObject, EClass originalQueryClass, EClass eClass, long oid, ByteBuffer buffer, IfcModelInterface model, int rid,
 			QueryInterface query, TodoList todoList) throws BimserverDatabaseException {
 		try {
@@ -281,8 +284,15 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 
 			int fieldCounter = 0;
 			for (EStructuralFeature feature : eClass.getEAllStructuralFeatures()) {
-				if (feature.isUnsettable() && (unsetted[fieldCounter / 8] & (1 << (fieldCounter % 8))) != 0) {
-					idEObject.eUnset(feature);
+				boolean isUnsetted = (unsetted[fieldCounter / 8] & (1 << (fieldCounter % 8))) != 0;
+				if (isUnsetted) {
+					if (feature.isUnsettable()) {
+						idEObject.eUnset(feature);
+					} else if (feature.isMany()) {
+						// do nothing
+					} else if (feature.getDefaultValue() != null) {
+						idEObject.eSet(feature, feature.getDefaultValue());
+					}
 				} else {
 					if (!query.shouldFollowReference(originalQueryClass, eClass, feature)) {
 						// we have to do some reading to maintain a correct
@@ -424,12 +434,34 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		}
 	}
 
-	private ByteBuffer convertObjectToByteArray(IdEObject object) throws BimserverDatabaseException {
-		ByteBuffer buffer = ByteBuffer.allocate(getExactSize(object));
+	private boolean useUnsetBit(EStructuralFeature feature, IdEObject object) {
+		// TODO non-unsettable boolean values can also be stored in these bits
+		Object value = object.eGet(feature);
+		if (feature.isUnsettable()) {
+			if (!object.eIsSet(feature)) {
+				return true;
+			}
+		} else {
+			if (feature.isMany() && ((List<?>)value).isEmpty()) {
+				return true;
+			}
+			if (feature.getDefaultValue() == value || (feature.getDefaultValue() != null && feature.getDefaultValue().equals(value))) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private ByteBuffer convertObjectToByteArray(IdEObject object, ByteBuffer buffer) throws BimserverDatabaseException {
+		int bufferSize = getExactSize(object);
+		if (bufferSize > buffer.capacity()) {
+			LOGGER.debug("Buffer too small (" + bufferSize + ")");
+			buffer = ByteBuffer.allocate(bufferSize);
+		}
 		byte[] unsetted = new byte[(int) Math.ceil(object.eClass().getEAllStructuralFeatures().size() / 8.0)];
 		int fieldCounter = 0;
 		for (EStructuralFeature feature : object.eClass().getEAllStructuralFeatures()) {
-			if (feature.isUnsettable() && !object.eIsSet(feature)) {
+			if (useUnsetBit(feature, object)) {
 				unsetted[fieldCounter / 8] |= (1 << (fieldCounter % 8));
 			}
 			fieldCounter++;
@@ -438,7 +470,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		buffer.put(unsetted);
 
 		for (EStructuralFeature feature : object.eClass().getEAllStructuralFeatures()) {
-			if (!feature.isUnsettable() || object.eIsSet(feature)) {
+			if (!useUnsetBit(feature, object)) {
 				if (feature.isMany()) {
 					if (feature.getEType() instanceof EEnum) {
 						// Aggregate relations to enums never occur... at this
@@ -498,9 +530,13 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 				}
 			}
 		}
+		if (buffer.position() != bufferSize) {
+			throw new BimserverDatabaseException("Value buffer sizes do not match for " + object.eClass().getName() + " " + buffer.position() + "/" + bufferSize);
+		}
 		return buffer;
 	}
 
+	@SuppressWarnings("unused")
 	private ByteBuffer fillKeyBuffer(ByteBuffer buffer, IdEObject object) {
 		if (DEVELOPER_DEBUG && object.getRid() > 100000 || object.getRid() < -100000) {
 			LOGGER.debug("Improbable rid: " + object.getRid() + " - " + object);
@@ -912,7 +948,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 
 		for (EStructuralFeature eStructuralFeature : idEObject.eClass().getEAllStructuralFeatures()) {
 			bits++;
-			if (!eStructuralFeature.isUnsettable() || idEObject.eIsSet(eStructuralFeature)) {
+			if (!useUnsetBit(eStructuralFeature, idEObject)) {
 				Object val = idEObject.eGet(eStructuralFeature);
 				if (eStructuralFeature instanceof EAttribute) {
 					EAttribute eAttribute = (EAttribute) eStructuralFeature;
@@ -926,14 +962,14 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 					}
 				} else if (eStructuralFeature instanceof EReference) {
 					EReference eReference = (EReference) eStructuralFeature;
-					if (val == null) {
-						size += 2;
+					if (eReference.isMany()) {
+						size += 4;
+						for (Object v : ((List<?>) val)) {
+							size += getWrappedValueSize(v);
+						}
 					} else {
-						if (eReference.isMany()) {
-							size += 4;
-							for (Object v : ((List<?>) val)) {
-								size += getWrappedValueSize(v);
-							}
+						if (val == null) {
+							size += 2;
 						} else {
 							size += getWrappedValueSize(val);
 						}
@@ -1246,6 +1282,9 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 	}
 
 	private int getWrappedValueSize(Object val) {
+		if (val == null) {
+			return 2;
+		}
 		if (val instanceof EObject) {
 			EObject eObject = (EObject) val;
 			int refSize = 10;
@@ -1272,6 +1311,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		return new IfcModel();
 	}
 
+	@SuppressWarnings("unused")
 	public IdEObject lazyLoad(IdEObject idEObject) throws BimserverDatabaseException {
 		if (DEVELOPER_DEBUG) {
 			LOGGER.info("Lazy loading " + idEObject.eClass().getName() + " " + idEObject.getOid());
@@ -1651,12 +1691,12 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 			if (wrappedValue.getOid() == -1) {
 				((IdEObjectImpl) wrappedValue).setOid(newOid(Ifc2x3tc1Package.eINSTANCE.getIfcGloballyUniqueId()));
 			}
-			ByteBuffer convertObjectToByteArray = convertObjectToByteArray(wrappedValue);
-			ByteBuffer createKeyBuffer = createKeyBuffer(pid, wrappedValue.getOid(), rid);
+			ByteBuffer valueBuffer = convertObjectToByteArray(wrappedValue, ByteBuffer.allocate(getExactSize(wrappedValue)));
+			ByteBuffer keyBuffer = createKeyBuffer(pid, wrappedValue.getOid(), rid);
 			try {
 				EClass ifcGloballyUniqueIdEClass = Ifc2x3tc1Package.eINSTANCE.getIfcGloballyUniqueId();
 				database.getKeyValueStore().storeNoOverwrite(ifcGloballyUniqueIdEClass.getEPackage().getName() + "_" + ifcGloballyUniqueIdEClass.getName(),
-						createKeyBuffer.array(), convertObjectToByteArray.array(), this);
+						keyBuffer.array(), valueBuffer.array(), this);
 				database.incrementCommittedWrites(1);
 			} catch (BimserverLockConflictException e) {
 				LOGGER.error("", e);

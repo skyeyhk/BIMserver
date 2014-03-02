@@ -17,6 +17,7 @@
 package org.bimserver.models.ifc2x3tc1;
 
 import org.bimserver.emf.IdEObject;
+import org.eclipse.emf.common.util.EList;
 
 /**
  * <!-- begin-user-doc -->
@@ -33,6 +34,7 @@ import org.bimserver.emf.IdEObject;
  *   <li>{@link org.bimserver.models.ifc2x3tc1.GeometryInfo#getPrimitiveCount <em>Primitive Count</em>}</li>
  *   <li>{@link org.bimserver.models.ifc2x3tc1.GeometryInfo#getData <em>Data</em>}</li>
  *   <li>{@link org.bimserver.models.ifc2x3tc1.GeometryInfo#getInstance <em>Instance</em>}</li>
+ *   <li>{@link org.bimserver.models.ifc2x3tc1.GeometryInfo#getTransformation <em>Transformation</em>}</li>
  * </ul>
  * </p>
  *
@@ -223,5 +225,31 @@ public interface GeometryInfo extends IdEObject {
 	 * @generated
 	 */
 	void setInstance(GeometryInstance value);
+
+	/**
+	 * Returns the value of the '<em><b>Transformation</b></em>' attribute.
+	 * <!-- begin-user-doc -->
+	 * <p>
+	 * If the meaning of the '<em>Transformation</em>' attribute list isn't clear,
+	 * there really should be more of a description here...
+	 * </p>
+	 * <!-- end-user-doc -->
+	 * @return the value of the '<em>Transformation</em>' attribute.
+	 * @see #setTransformation(byte[])
+	 * @see org.bimserver.models.ifc2x3tc1.Ifc2x3tc1Package#getGeometryInfo_Transformation()
+	 * @model
+	 * @generated
+	 */
+	byte[] getTransformation();
+
+	/**
+	 * Sets the value of the '{@link org.bimserver.models.ifc2x3tc1.GeometryInfo#getTransformation <em>Transformation</em>}' attribute.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @param value the new value of the '<em>Transformation</em>' attribute.
+	 * @see #getTransformation()
+	 * @generated
+	 */
+	void setTransformation(byte[] value);
 
 } // GeometryInfo

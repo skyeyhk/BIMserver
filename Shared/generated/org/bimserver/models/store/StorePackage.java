@@ -6055,13 +6055,49 @@ public interface StorePackage extends EPackage {
 	int PROJECT_SMALL__PARENT_ID = 1;
 
 	/**
+	 * The feature id for the '<em><b>State</b></em>' attribute.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @generated
+	 * @ordered
+	 */
+	int PROJECT_SMALL__STATE = 2;
+
+	/**
+	 * The feature id for the '<em><b>Nr Revisions</b></em>' attribute.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @generated
+	 * @ordered
+	 */
+	int PROJECT_SMALL__NR_REVISIONS = 3;
+
+	/**
+	 * The feature id for the '<em><b>Nr Sub Projects</b></em>' attribute.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @generated
+	 * @ordered
+	 */
+	int PROJECT_SMALL__NR_SUB_PROJECTS = 4;
+
+	/**
+	 * The feature id for the '<em><b>Has Checkin Rights</b></em>' attribute.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @generated
+	 * @ordered
+	 */
+	int PROJECT_SMALL__HAS_CHECKIN_RIGHTS = 5;
+
+	/**
 	 * The number of structural features of the '<em>Project Small</em>' class.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
 	 * @generated
 	 * @ordered
 	 */
-	int PROJECT_SMALL_FEATURE_COUNT = 2;
+	int PROJECT_SMALL_FEATURE_COUNT = 6;
 
 	/**
 	 * The meta object id for the '{@link org.bimserver.models.store.impl.IfcHeaderImpl <em>Ifc Header</em>}' class.
@@ -11509,6 +11545,50 @@ public interface StorePackage extends EPackage {
 	EAttribute getProjectSmall_ParentId();
 
 	/**
+	 * Returns the meta object for the attribute '{@link org.bimserver.models.store.ProjectSmall#getState <em>State</em>}'.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @return the meta object for the attribute '<em>State</em>'.
+	 * @see org.bimserver.models.store.ProjectSmall#getState()
+	 * @see #getProjectSmall()
+	 * @generated
+	 */
+	EAttribute getProjectSmall_State();
+
+	/**
+	 * Returns the meta object for the attribute '{@link org.bimserver.models.store.ProjectSmall#getNrRevisions <em>Nr Revisions</em>}'.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @return the meta object for the attribute '<em>Nr Revisions</em>'.
+	 * @see org.bimserver.models.store.ProjectSmall#getNrRevisions()
+	 * @see #getProjectSmall()
+	 * @generated
+	 */
+	EAttribute getProjectSmall_NrRevisions();
+
+	/**
+	 * Returns the meta object for the attribute '{@link org.bimserver.models.store.ProjectSmall#getNrSubProjects <em>Nr Sub Projects</em>}'.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @return the meta object for the attribute '<em>Nr Sub Projects</em>'.
+	 * @see org.bimserver.models.store.ProjectSmall#getNrSubProjects()
+	 * @see #getProjectSmall()
+	 * @generated
+	 */
+	EAttribute getProjectSmall_NrSubProjects();
+
+	/**
+	 * Returns the meta object for the attribute '{@link org.bimserver.models.store.ProjectSmall#isHasCheckinRights <em>Has Checkin Rights</em>}'.
+	 * <!-- begin-user-doc -->
+	 * <!-- end-user-doc -->
+	 * @return the meta object for the attribute '<em>Has Checkin Rights</em>'.
+	 * @see org.bimserver.models.store.ProjectSmall#isHasCheckinRights()
+	 * @see #getProjectSmall()
+	 * @generated
+	 */
+	EAttribute getProjectSmall_HasCheckinRights();
+
+	/**
 	 * Returns the meta object for class '{@link org.bimserver.models.store.IfcHeader <em>Ifc Header</em>}'.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
@@ -16035,6 +16115,41 @@ public interface StorePackage extends EPackage {
 		 */
 		EAttribute PROJECT_SMALL__PARENT_ID = eINSTANCE
 				.getProjectSmall_ParentId();
+
+		/**
+		 * The meta object literal for the '<em><b>State</b></em>' attribute feature.
+		 * <!-- begin-user-doc -->
+		 * <!-- end-user-doc -->
+		 * @generated
+		 */
+		EAttribute PROJECT_SMALL__STATE = eINSTANCE.getProjectSmall_State();
+
+		/**
+		 * The meta object literal for the '<em><b>Nr Revisions</b></em>' attribute feature.
+		 * <!-- begin-user-doc -->
+		 * <!-- end-user-doc -->
+		 * @generated
+		 */
+		EAttribute PROJECT_SMALL__NR_REVISIONS = eINSTANCE
+				.getProjectSmall_NrRevisions();
+
+		/**
+		 * The meta object literal for the '<em><b>Nr Sub Projects</b></em>' attribute feature.
+		 * <!-- begin-user-doc -->
+		 * <!-- end-user-doc -->
+		 * @generated
+		 */
+		EAttribute PROJECT_SMALL__NR_SUB_PROJECTS = eINSTANCE
+				.getProjectSmall_NrSubProjects();
+
+		/**
+		 * The meta object literal for the '<em><b>Has Checkin Rights</b></em>' attribute feature.
+		 * <!-- begin-user-doc -->
+		 * <!-- end-user-doc -->
+		 * @generated
+		 */
+		EAttribute PROJECT_SMALL__HAS_CHECKIN_RIGHTS = eINSTANCE
+				.getProjectSmall_HasCheckinRights();
 
 		/**
 		 * The meta object literal for the '{@link org.bimserver.models.store.impl.IfcHeaderImpl <em>Ifc Header</em>}' class.
