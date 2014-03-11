@@ -19,17 +19,14 @@ package org.bimserver.shared.meta;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import javax.activation.DataHandler;
 
@@ -40,23 +37,24 @@ import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SClass {
+public class SClass implements Comparable<SClass> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SClass.class);
-	private final Map<String, SField> fields = new HashMap<String, SField>();
+	private final Map<String, SField> ownFields = new TreeMap<String, SField>();
+	private final Map<String, SField> allFields = new TreeMap<String, SField>();
 	private final String name;
 	private final Class<?> instanceClass;
-	private final SService sService;
+	private final Set<SClass> subClasses = new TreeSet<SClass>();
+	private final SConstructor sConstructor;
+	private final SimpleType simpleType;
 	private SClass superClass;
-	private Set<SClass> subClasses = new HashSet<SClass>();
-	private SConstructor sConstructor;
-	private SimpleType simpleType;
+	private SServicesMap sServicesMap;
 	
-	public SClass(SService sService, Class<?> instanceClass, SConstructor sConstructor) {
+	public SClass(SServicesMap sServicesMap, Class<?> instanceClass, SConstructor sConstructor) {
+		this.sServicesMap = sServicesMap;
 		this.sConstructor = sConstructor;
 		if (instanceClass == null) {
-			throw new RuntimeException("InstanceClass cannot be null " + sService.getName());
+			throw new RuntimeException("InstanceClass cannot be null");
 		}
-		this.sService = sService;
 		this.instanceClass = instanceClass;
 		this.name = instanceClass.getName();
 		this.simpleType = SimpleType.get(instanceClass);
@@ -77,8 +75,8 @@ public class SClass {
 		}
 	}
 
-	public SService getsService() {
-		return sService;
+	public SServicesMap getServicesMap() {
+		return this.sServicesMap;
 	}
 	
 	public void init() {
@@ -88,9 +86,9 @@ public class SClass {
 					String fieldName = StringUtils.firstLowerCase(method.getName().substring(3));
 					try {
 						if (instanceClass.getMethod("set" + StringUtils.firstUpperCase(fieldName), method.getReturnType()) != null) {
-							Class<?> genericType = getGenericType(method);
+							Class<?> genericType = sServicesMap.getGenericType(method);
 							boolean aggregate = List.class.isAssignableFrom(method.getReturnType()) || Set.class.isAssignableFrom(method.getReturnType());
-							SField sField = new SField(fieldName, sService.getSType(method.getReturnType().getName()), genericType == null ? null : sService.getSType(genericType.getName()), aggregate);
+							SField sField = new SField(fieldName, sServicesMap.getSType(method.getReturnType().getName()), genericType == null ? null : sServicesMap.getSType(genericType.getName()), aggregate);
 							addField(sField);
 						}
 					} catch (SecurityException e) {
@@ -101,9 +99,9 @@ public class SClass {
 					String fieldName = StringUtils.firstLowerCase(method.getName().substring(2));
 					try {
 						if (instanceClass.getMethod("set" + StringUtils.firstUpperCase(fieldName), method.getReturnType()) != null) {
-							Class<?> genericType = getGenericType(method);
+							Class<?> genericType = sServicesMap.getGenericType(method);
 							boolean aggregate = List.class.isAssignableFrom(method.getReturnType()) || Set.class.isAssignableFrom(method.getReturnType());
-							SField sField = new SField(fieldName, sService.getSType(method.getReturnType().getName()), genericType == null ? null : sService.getSType(genericType.getName()), aggregate);
+							SField sField = new SField(fieldName, sServicesMap.getSType(method.getReturnType().getName()), genericType == null ? null : sServicesMap.getSType(genericType.getName()), aggregate);
 							addField(sField);
 						}
 					} catch (SecurityException e) {
@@ -114,37 +112,25 @@ public class SClass {
 		}
 		Class<?> superclass = instanceClass.getSuperclass();
 		if (SBase.class.isAssignableFrom(instanceClass) && superclass != null) {
-			addSuperClass(sService.getSType(superclass.getName()));
+			addSuperClass(sServicesMap.getSType(superclass.getName()));
 		}
 	}
 
 	private void addSuperClass(SClass sType) {
 		superClass = sType;
+		for (SField field : superClass.getAllFields()) {
+			allFields.put(field.getName(), field);
+		}
 		sType.addSubClass(this);
 	}
-
+	
 	private void addSubClass(SClass sClass) {
 		subClasses.add(sClass);
 	}
 
-	private Class<?> getGenericType(Method method) {
-		Type genericReturnType = method.getGenericReturnType();
-		if (method.getGenericReturnType() instanceof ParameterizedType) {
-			ParameterizedType parameterizedTypeImpl = (ParameterizedType)genericReturnType;
-			Type first = parameterizedTypeImpl.getActualTypeArguments()[0];
-			if (first instanceof WildcardType) {
-				return null;
-			} else if (first instanceof ParameterizedType) {
-				return null;
-			} else {
-				return (Class<?>) first;
-			}
-		}
-		return (Class<?>) method.getGenericReturnType();
-	}
-
 	public void addField(SField sField) {
-		fields.put(sField.getName(), sField);
+		ownFields.put(sField.getName(), sField);
+		allFields.put(sField.getName(), sField);
 	}
 	
 	public String getName() {
@@ -160,31 +146,19 @@ public class SClass {
 	}
 	
 	public SField getField(String name) {
-		SField sField = fields.get(name);
-		if (sField != null) {
-			return sField;
-		}
-		if (superClass != null) {
-			return superClass.getField(name);
-		}
-		return null;
+		return allFields.get(name);
 	}
 
 	public Class<?> getInstanceClass() {
 		return instanceClass;
 	}
 	
-	public Set<SField> getFields() {
-		return new LinkedHashSet<SField>(fields.values());
+	public Collection<SField> getOwnFields() {
+		return ownFields.values();
 	}
-	
-	public Set<SField> getAllFields() {
-		// TODO this is sloooow
-		Set<SField> fields = new LinkedHashSet<SField>(getFields());
-		if (getSuperClass() != null) {
-			fields.addAll(getSuperClass().getAllFields());
-		}
-		return fields;
+
+	public Collection<SField> getAllFields() {
+		return allFields.values();
 	}
 	
 	public SBase newInstance() {
@@ -258,7 +232,7 @@ public class SClass {
 	
 	@Override
 	public String toString() {
-		return name;
+		return name + super.toString();
 	}
 	
 	public String toJavaCode() {
@@ -309,10 +283,40 @@ public class SClass {
 		result.put("simpleName", getSimpleName());
 		result.put("simpleType", getSimpleType().name());
 		JSONArray fieldsJson = new JSONArray();
-		for (SField field : fields.values()) {
+		for (SField field : ownFields.values()) {
 			fieldsJson.put(field.toJson());
 		}
 		result.put("fields", fieldsJson);
 		return result;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((instanceClass == null) ? 0 : instanceClass.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		SClass other = (SClass) obj;
+		if (instanceClass == null) {
+			if (other.instanceClass != null)
+				return false;
+		} else if (!instanceClass.equals(other.instanceClass))
+			return false;
+		return true;
+	}
+
+	@Override
+	public int compareTo(SClass arg0) {
+		return name.compareTo(arg0.getName());
 	}
 }

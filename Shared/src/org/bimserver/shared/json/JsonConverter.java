@@ -33,6 +33,7 @@ import javax.mail.util.ByteArrayDataSource;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
+import org.bimserver.interfaces.objects.SProject;
 import org.bimserver.plugins.serializers.CacheStoringEmfSerializerDataSource;
 import org.bimserver.plugins.serializers.SerializerException;
 import org.bimserver.shared.meta.SBase;
@@ -112,7 +113,7 @@ public class JsonConverter {
 			SBase base = (SBase) object;
 			JsonObject jsonObject = new JsonObject();
 			jsonObject.add("__type", new JsonPrimitive(base.getSClass().getSimpleName()));
-			for (SField field : base.getSClass().getAllFields()) {
+			for (SField field : base.getSClass().getOwnFields()) {
 				jsonObject.add(field.getName(), toJson(base.sGet(field)));
 			}
 			return jsonObject;

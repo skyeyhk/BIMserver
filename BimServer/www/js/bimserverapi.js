@@ -48,7 +48,9 @@ function BimServerApi(baseUrl, notifier) {
 		REMOVEUSERFROMPROJECT_DONE: "User successfully removed from project",
 		UNDELETEPROJECT_DONE: "Project successfully undeleted",
 		DELETEPROJECT_DONE: "Project successfully deleted",
-		ADDPROJECT_DONE: "Project successfully added"
+		ADDPROJECT_DONE: "Project successfully added",
+		DOWNLOAD_BUSY: "Busy downloading...",
+		VALIDATEACCOUNT_DONE: "Account successfully validated, you can now login"
 	}
 
 	othis.token = null;
@@ -113,7 +115,7 @@ function BimServerApi(baseUrl, notifier) {
 			}
 			othis.notifier.setInfo("Login successful", 2000);
 			othis.resolveUser();
-			callback();
+			othis.server.connect(callback);
 		}, errorCallback);
 	};
 
@@ -172,14 +174,6 @@ function BimServerApi(baseUrl, notifier) {
 		return othis.baseUrl + "/download?token=" + othis.token + "&action=extendeddata&edid=" + edid;
 	};
 
-	this.openWebSocket = function(callback) {
-		if (othis.server.connected) {
-			callback();
-		} else {
-			othis.server.connect(callback);
-		}
-	};
-	
 	this.getSerializerByPluginClassName = function(pluginClassName, callback) {
 		if (othis.serializersByPluginClassName[name] == null) {
 			othis.call("PluginInterface", "getSerializerByPluginClassName", {pluginClassName : pluginClassName}, function(serializer) {
@@ -199,11 +193,9 @@ function BimServerApi(baseUrl, notifier) {
 			othis.listeners[interfaceName][methodName] = [];
 		}
 		othis.listeners[interfaceName][methodName].push(callback);
-		othis.openWebSocket(function(){
-			if (registerCallback != null) {
-				registerCallback();
-			}
-		});
+		if (registerCallback != null) {
+			registerCallback();
+		}
 	};
 
 	this.registerNewRevisionOnSpecificProjectHandler = function(poid, handler, callback){
@@ -313,11 +305,13 @@ function BimServerApi(baseUrl, notifier) {
 
 	this.unregisterNewProjectHandler = function(handler, callback){
 		othis.unregister(handler);
-		othis.call("Bimsie1NotificationRegistryInterface", "unregisterNewProjectHandler", {endPointId: othis.server.endPointId}, function(){
-			if (callback != null) {
-				callback();
-			}
-		});
+		if (othis.server.endPointId != null) {
+			othis.call("Bimsie1NotificationRegistryInterface", "unregisterNewProjectHandler", {endPointId: othis.server.endPointId}, function(){
+				if (callback != null) {
+					callback();
+				}
+			});
+		}
 	};
 
 	this.unregisterNewRevisionOnSpecificProjectHandler = function(poid, handler, callback){
@@ -390,10 +384,10 @@ function BimServerApi(baseUrl, notifier) {
 		return object;
 	};
 
-	this.multiCall = function(requests, callback, showBusy, showDone, showError) {
+	this.multiCall = function(requests, callback, errorCallback, showBusy, showDone, showError) {
 		var request = null;
 		if (requests.length == 1) {
-			var request = requests[0];
+			request = requests[0];
 			if (othis.interfaceMapping[request[0]] == null) {
 				othis.log("Interface " + request[0] + " not found");
 			}
@@ -406,6 +400,8 @@ function BimServerApi(baseUrl, notifier) {
 			request = {
 				requests: requestObjects
 			};
+		} else if (requests.length == 0) {
+			callback();
 		}
 
 //		othis.notifier.clear();
@@ -484,7 +480,7 @@ function BimServerApi(baseUrl, notifier) {
 					data.responses.forEach(function(response){
 						if (response.exception != null) {
 							if (errorCallback == null) {
-								othis.notifier.error(response.exception.message);
+								othis.notifier.setError(response.exception.message);
 							} else {
 								errorsToReport.push(response.exception);
 							}
@@ -511,7 +507,7 @@ function BimServerApi(baseUrl, notifier) {
 					if (othis.lastTimeOut != null) {
 						clearTimeout(othis.lastTimeOut);
 					}
-					othis.notifier.error("ERROR_REMOTE_METHOD_CALL");
+					othis.notifier.setError("ERROR_REMOTE_METHOD_CALL");
 				}
 				if (callback != null) {
 					var result = new Object();
@@ -551,8 +547,9 @@ function BimServerApi(baseUrl, notifier) {
 		othis.call(interfaceName, methodName, data, callback, null, false, true, true);
 	};
 
-	this.setToken = function(token) {
+	this.setToken = function(token, callback) {
 		othis.token = token;
+		othis.server.connect(callback);
 	};
 
 	this.call = function(interfaceName, methodName, data, callback, errorCallback, showBusy, showDone, showError) {
@@ -574,7 +571,7 @@ function BimServerApi(baseUrl, notifier) {
 					errorCallback(data.exception);
 				}
 			}
-		}, showBusy, showDone, showError);
+		}, errorCallback, showBusy, showDone, showError);
 	};
 
 	othis.server.listener = othis.processNotification;
@@ -1283,6 +1280,7 @@ function BimServerWebSocket(baseUrl, bimServerApi) {
 	this.openCallbacks = [];
 	this.endPointId = null;
 	this.listener = null;
+	this.tosend = [];
 
 	this.connect = function(callback) {
 		othis.openCallbacks.push(callback);
@@ -1297,11 +1295,24 @@ function BimServerWebSocket(baseUrl, bimServerApi) {
 	};
 
 	this._onopen = function() {
+		while (othis.tosend.length > 0 && othis._ws.readyState == 1) {
+			var messageArray = othis.tosend.splice(0, 1);
+			console.log(messageArray[0]);
+			othis._send(messageArray[0]);
+		}
 	};
 
 	this._send = function(message) {
-		if (this._ws) {
-			this._ws.send(message);
+		if (othis._ws) {
+			if (othis._ws.readyState == 1) {
+				othis._ws.send(message);
+			} else if (othis._ws.readyState == 0) {
+				othis.tosend.push(message);
+			} else {
+				console.log("Skipping message because of websocket state: " + this._ws.readyState);
+			}
+		} else {
+			othis.tosend.push(message);
 		}
 	};
 
