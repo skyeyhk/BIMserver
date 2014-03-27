@@ -3,12 +3,10 @@
 		<format property="builddate" pattern="yyyy-MM-dd" />
 	</tstamp>
 	
-	<taskdef classname="net.bluecow.googlecode.ant.GoogleCodeUploadTask" classpath="antlibs/ant-googlecode-0.0.3.jar" name="gcupload"/>
-
 	<property name="majorversion" value="1"/>
 	<property name="minorversion" value="3"/>
 	<property name="revisionversion" value="0"/>
-	<property name="type" value="RC5"/>
+	<property name="type" value="RC6"/>
 	<property name="revisiondate" value="${builddate}"/>
 	<property name="version" value="${majorversion}.${minorversion}.${revisionversion}-${type}-${revisiondate}"/>
 
@@ -18,12 +16,14 @@
 		<mkdir dir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}/javadoc"/>
 		<copy file="README.txt" todir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}"/>
 
+<!--
 		<ant antfile="javadoc.build.xml" target="Build JavaDoc"/>
 		<copy file="builds/bimserver-javadoc-${version}.zip" todir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}"/>
 
 		<copy todir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}/javadoc">
 			<fileset dir="builds/bimserver-javadoc-${version}"/>
 		</copy>
+-->
 		
 		<ant antfile="bimserver.build.xml" target="Build War"/>
 		<copy file="builds/bimserver-${version}.war" todir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}"/>
@@ -37,8 +37,10 @@
 		<ant antfile="bimserverlib.build.xml" target="Build ServerLib"/>
 		<copy file="builds/bimserver-lib-${version}.zip" todir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}"/>
 		
+<!--
 		<ant antfile="source.build.xml" target="Build Source"/>
 		<copy file="builds/bimserver-source-${version}.zip" todir="/var/www/BIMserver/${majorversion}.${minorversion}/${version}"/>
+-->
 		
 		<java jar="antlibs/githubrelease.jar" fork="true">
 			<classpath>
@@ -59,7 +61,7 @@
 			<arg value="BIMserver Release"></arg>
 			<arg value="true"></arg>
 			<arg value="true"></arg>
-			<arg value="/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-${version}.jar;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-${version}.war;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-javadoc-${version}.zip;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-client-lib-${version}.zip;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-lib-${version}.zip"></arg>			
+			<arg value="/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-${version}.jar;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-${version}.war;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-client-lib-${version}.zip;/var/www/BIMserver/${majorversion}.${minorversion}/${version}/bimserver-lib-${version}.zip"></arg>			
 		</java>
 	</target>
 </project>

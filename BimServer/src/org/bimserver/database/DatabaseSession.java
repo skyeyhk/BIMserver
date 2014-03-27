@@ -236,6 +236,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		}
 
 		IdEObjectImpl object = createInternal(eClass, query);
+
 		object.setOid(oid);
 		object.setPid(query.getPid());
 		object.setRid(rid);
@@ -262,6 +263,7 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		try {
 			if (idEObject == null) {
 				idEObject = createInternal(eClass, query);
+
 				((IdEObjectImpl) idEObject).setOid(oid);
 				((IdEObjectImpl) idEObject).setPid(query.getPid());
 				if (rid == Integer.MAX_VALUE) {
@@ -804,6 +806,14 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		return model;
 	}
 
+	public IfcModelInterface getAllOfType(IfcModelInterface model, EClass eClass, QueryInterface query) throws BimserverDatabaseException {
+		checkOpen();
+		TodoList todoList = new TodoList();
+		getMap(eClass, model, query, todoList);
+		processTodoList(model, todoList, query);
+		return model;
+	}
+
 	public IfcModelInterface getAllOfTypes(Set<EClass> eClasses, QueryInterface query) throws BimserverDatabaseException {
 		checkOpen();
 		IfcModelInterface model = createModel();
@@ -818,6 +828,11 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 	public IfcModelInterface getAllOfType(String className, QueryInterface query) throws BimserverDatabaseException {
 		checkOpen();
 		return getAllOfType(getEClassForName(className), query);
+	}
+
+	public IfcModelInterface getAllOfType(IfcModelInterface model, String className, QueryInterface query) throws BimserverDatabaseException {
+		checkOpen();
+		return getAllOfType(model, getEClassForName(className), query);
 	}
 
 	public BimTransaction getBimTransaction() {
@@ -1316,7 +1331,10 @@ public class DatabaseSession implements LazyLoader, OidProvider<Long> {
 		if (DEVELOPER_DEBUG) {
 			LOGGER.info("Lazy loading " + idEObject.eClass().getName() + " " + idEObject.getOid());
 		}
-		IfcModelInterface model = createModel();
+		IfcModelInterface model = ((IdEObjectImpl)idEObject).getModel();
+		if (model == null) {
+			model = createModel();
+		}
 		idEObject = get(model, idEObject, idEObject.getOid(), ((IdEObjectImpl) idEObject).getQueryInterface(), new TodoList());
 		if (idEObject != null) {
 			if (DEVELOPER_DEBUG && idEObject.getRid() > 100000 || idEObject.getRid() < -100000) {

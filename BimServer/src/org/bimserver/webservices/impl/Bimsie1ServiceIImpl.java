@@ -191,6 +191,13 @@ public class Bimsie1ServiceIImpl extends GenericServiceImpl implements Bimsie1Se
 		fromClassNames.setUseObjectIDM(useObjectIDM);
 		return download(fromClassNames, sync);
 	}
+	
+	@Override
+	public Long downloadByJsonQuery(Set<Long> roids, String jsonQuery, Long serializerOid, Boolean sync) throws ServerException, UserException {
+		requireAuthenticationAndRunningServer();
+		DownloadParameters fromJsonQuery = DownloadParameters.fromJsonQuery(getBimServer(), roids, jsonQuery, serializerOid);
+		return download(fromJsonQuery, sync);
+	}
 
 	@Override
 	public Long downloadByGuids(Set<Long> roids, Set<String> guids, Long serializerOid, Boolean deep, Boolean sync) throws ServerException, UserException {
@@ -467,6 +474,28 @@ public class Bimsie1ServiceIImpl extends GenericServiceImpl implements Bimsie1Se
 			GetProjectByPoidDatabaseAction action = new GetProjectByPoidDatabaseAction(session, getInternalAccessMethod(), poid, getAuthorization());
 			SProject result = getBimServer().getSConverter().convertToSObject(session.executeAndCommitAction(action));
 			return result;
+		} catch (Exception e) {
+			return handleException(e);
+		} finally {
+			session.close();
+		}
+	}
+
+	@Override
+	public SProjectSmall getProjectSmallByPoid(Long poid) throws ServerException, UserException {
+		requireAuthenticationAndRunningServer();
+		DatabaseSession session = getBimServer().getDatabase().createSession();
+		try {
+			GetProjectByPoidDatabaseAction action = new GetProjectByPoidDatabaseAction(session, getInternalAccessMethod(), poid, getAuthorization());
+			Project project = session.executeAndCommitAction(action);
+			SProjectSmall small = new SProjectSmall();
+			small.setName(project.getName());
+			small.setOid(project.getOid());
+			small.setLastRevisionId(project.getLastRevision() == null ? -1 : project.getLastRevision().getOid());
+			small.setState(getBimServer().getSConverter().convertToSObject(project.getState()));
+			small.setParentId(project.getParent() == null ? -1 : project.getParent().getOid());
+			small.setNrSubProjects(project.getSubProjects().size());
+			return small;
 		} catch (Exception e) {
 			return handleException(e);
 		} finally {

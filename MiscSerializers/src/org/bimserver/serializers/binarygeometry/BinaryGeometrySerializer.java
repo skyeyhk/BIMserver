@@ -182,16 +182,16 @@ public class BinaryGeometrySerializer extends AbstractGeometrySerializer {
 				}
 			}
 			counter++;
-			if (counter % 10 == 0) {
+			if (counter % 12 == 0) {
 				dataOutputStream.flush();
 			}
 		}
 		dataOutputStream.flush();
-		if (bytesTotal != 0) {
-			System.out.println((100 * bytesSaved / bytesTotal) + "% saved");
+		if (bytesTotal != 0 && bytesSaved != 0) {
+			LOGGER.debug((100 * bytesSaved / bytesTotal) + "% saved");
 		}
 		long end = System.nanoTime();
-		System.out.println(((end - start) / 1000000) + " ms");
+		LOGGER.debug(((end - start) / 1000000) + " ms");
 	}
 	
 	private void add(Set<IfcProduct> alreadySent, IfcObjectDefinition parent) {
@@ -199,7 +199,6 @@ public class BinaryGeometrySerializer extends AbstractGeometrySerializer {
 			return;
 		}
 		if (parent instanceof IfcProduct) {
-			System.out.println("Adding " + parent);
 			alreadySent.add((IfcProduct) parent);
 		}
 		EList<IfcRelDecomposes> isDecomposedBy = parent.getIsDecomposedBy();
